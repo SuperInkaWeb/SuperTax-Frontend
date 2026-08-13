@@ -2,6 +2,8 @@ import { obtenerToken } from "@/shared/lib/authBridge"
 import { api } from "@/shared/lib/api/client"
 import { API_URL } from "@/shared/lib/config"
 
+const MULTIPART = { headers: { "Content-Type": undefined } }
+
 // ─────────────────────── Credenciales SOL ───────────────────────
 export interface SunatCredentialsStatus {
   configured: boolean
@@ -26,16 +28,32 @@ export async function setCredentials(
   return data
 }
 
-// ─────────────────────── Historial ───────────────────────
+// ─────────────────────── Historial / resultados ───────────────────────
 export interface JobResult {
   id: number
   job_id: string
   created_at: string
 }
 
+export interface ResultadoComprobante {
+  id: string
+  estado: string
+  pdf: boolean
+  xml: boolean
+  pide_pdf: boolean
+  pide_xml: boolean
+}
+
 export async function listJobs(): Promise<JobResult[]> {
   const { data } = await api.get<JobResult[]>("/api/sunat/jobs")
   return data
+}
+
+export async function getJobResult(jobId: string): Promise<ResultadoComprobante[]> {
+  const { data } = await api.get<{ resultados: ResultadoComprobante[] }>(
+    `/api/sunat/jobs/${jobId}`,
+  )
+  return data.resultados
 }
 
 // ─────────────────────── Google Drive ───────────────────────
@@ -58,21 +76,46 @@ export async function disconnectDrive(): Promise<void> {
 }
 
 // ─────────────────────── Descarga ───────────────────────
+export interface Comprobante {
+  id: string
+  ruc: string
+  tipo: string
+  serie: string
+  numero: number
+}
+
 export interface PreviewResult {
-  comprobantes: unknown[]
+  comprobantes: Comprobante[]
   preview_id: string
 }
 
-export async function previewExcel(excel: File): Promise<PreviewResult> {
+export async function previewExcel(
+  excel: File | null,
+  excelLink: string,
+): Promise<PreviewResult> {
   const form = new FormData()
-  form.append("excel", excel)
-  const { data } = await api.post<PreviewResult>("/api/sunat/preview-excel", form, {
-    headers: { "Content-Type": undefined },
-  })
+  if (excel) form.append("excel", excel)
+  form.append("excel_link", excelLink)
+  const { data } = await api.post<PreviewResult>(
+    "/api/sunat/preview-excel",
+    form,
+    MULTIPART,
+  )
   return data
 }
 
-export interface IniciarInput {
+/** Opciones de entrega compartidas por iniciar y reintentar. */
+export interface EntregaOptions {
+  usar_correo: boolean
+  gmail_user: string
+  gmail_pass: string
+  destino: string
+  modo_correo: string
+  usar_drive: boolean
+  drive_folder: string
+}
+
+export interface IniciarInput extends EntregaOptions {
   ruc: string
   usuario: string
   clave: string
@@ -80,6 +123,18 @@ export interface IniciarInput {
   descargar_xml: boolean
   preview_id: string
   excel: File | null
+  excel_link: string
+  comprobantes_ids: string[]
+}
+
+function _appendEntrega(form: FormData, o: EntregaOptions): void {
+  form.append("usar_correo", String(o.usar_correo))
+  form.append("gmail_user", o.gmail_user)
+  form.append("gmail_pass", o.gmail_pass)
+  form.append("destino", o.destino)
+  form.append("modo_correo", o.modo_correo)
+  form.append("usar_drive", String(o.usar_drive))
+  form.append("drive_folder", o.drive_folder)
 }
 
 export async function iniciar(input: IniciarInput): Promise<string> {
@@ -89,11 +144,38 @@ export async function iniciar(input: IniciarInput): Promise<string> {
   form.append("clave", input.clave)
   form.append("descargar_pdf", String(input.descargar_pdf))
   form.append("descargar_xml", String(input.descargar_xml))
+  form.append("excel_link", input.excel_link)
+  form.append("comprobantes_ids", JSON.stringify(input.comprobantes_ids))
   if (input.preview_id) form.append("preview_id", input.preview_id)
   if (input.excel) form.append("excel", input.excel)
-  const { data } = await api.post<{ job_id: string }>("/api/sunat/iniciar", form, {
-    headers: { "Content-Type": undefined },
-  })
+  _appendEntrega(form, input)
+  const { data } = await api.post<{ job_id: string }>("/api/sunat/iniciar", form, MULTIPART)
+  return data.job_id
+}
+
+export interface ForzarInput extends EntregaOptions {
+  ruc: string
+  usuario: string
+  clave: string
+  excel: File | null
+  excel_link: string
+  resultados_previos: string
+}
+
+export async function forzarFaltantes(input: ForzarInput): Promise<string> {
+  const form = new FormData()
+  form.append("ruc", input.ruc)
+  form.append("usuario", input.usuario)
+  form.append("clave", input.clave)
+  form.append("excel_link", input.excel_link)
+  form.append("resultados_previos", input.resultados_previos)
+  if (input.excel) form.append("excel", input.excel)
+  _appendEntrega(form, input)
+  const { data } = await api.post<{ job_id: string }>(
+    "/api/sunat/forzar-faltantes",
+    form,
+    MULTIPART,
+  )
   return data.job_id
 }
 
