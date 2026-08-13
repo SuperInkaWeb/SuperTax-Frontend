@@ -19,6 +19,9 @@ const SireRoutes = lazy(() =>
 const SunatRoutes = lazy(() =>
   import("@/features/sunat/SunatRoutes").then((m) => ({ default: m.SunatRoutes })),
 )
+const ScannerRoutes = lazy(() =>
+  import("@/features/scanner/ScannerRoutes").then((m) => ({ default: m.ScannerRoutes })),
+)
 const AdminRoutes = lazy(() =>
   import("@/features/admin/AdminRoutes").then((m) => ({ default: m.AdminRoutes })),
 )
@@ -55,6 +58,7 @@ export function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/sire/*" element={<SireRoutes />} />
               <Route path="/sunat/*" element={<SunatRoutes />} />
+              <Route path="/scanner/*" element={<ScannerRoutes />} />
               <Route path="/admin/*" element={<AdminRoutes />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>

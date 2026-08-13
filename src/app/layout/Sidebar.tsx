@@ -13,7 +13,7 @@ const ITEMS = [
   { to: "/dashboard", label: "Inicio", icon: LayoutDashboard, enabled: true },
   { to: "/sire", label: "SIRE", icon: FileSpreadsheet, enabled: true },
   { to: "/sunat", label: "SUNAT", icon: Download, enabled: true },
-  { to: "/scanner", label: "Escaneo", icon: ScanLine, enabled: false },
+  { to: "/scanner", label: "Escaneo", icon: ScanLine, enabled: true },
   { to: "/admin", label: "Administración", icon: Settings, enabled: true },
 ]
 
