@@ -8,6 +8,7 @@ import {
   enableModule,
   listCompanies,
   listCompanyModules,
+  updateCompany,
 } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
 import { useAuthStore } from "@/shared/stores/auth"
@@ -66,6 +67,7 @@ export function EmpresasPage() {
   const queryClient = useQueryClient()
   const [ruc, setRuc] = useState("")
   const [razonSocial, setRazonSocial] = useState("")
+  const [editando, setEditando] = useState<Company | null>(null)
   const [seleccionada, setSeleccionada] = useState<Company | null>(null)
 
   const { data, isLoading } = useQuery({
@@ -74,15 +76,23 @@ export function EmpresasPage() {
     enabled: esPlatformAdmin,
   })
 
-  const crear = useMutation({
-    mutationFn: () => createCompany({ ruc, razon_social: razonSocial }),
+  function limpiar() {
+    setRuc("")
+    setRazonSocial("")
+    setEditando(null)
+  }
+
+  const guardar = useMutation({
+    mutationFn: () =>
+      editando
+        ? updateCompany(editando.id, { ruc, razon_social: razonSocial })
+        : createCompany({ ruc, razon_social: razonSocial }),
     onSuccess: () => {
-      toast.success("Empresa creada")
-      setRuc("")
-      setRazonSocial("")
+      toast.success(editando ? "Empresa actualizada" : "Empresa creada")
+      limpiar()
       queryClient.invalidateQueries({ queryKey: ["admin", "companies"] })
     },
-    onError: (err) => toast.error(apiError(err, "No se pudo crear la empresa")),
+    onError: (err) => toast.error(apiError(err, "No se pudo guardar la empresa")),
   })
 
   if (!esPlatformAdmin) {
@@ -100,16 +110,16 @@ export function EmpresasPage() {
     )
   }
 
-  function onCrear(e: FormEvent) {
+  function onGuardar(e: FormEvent) {
     e.preventDefault()
-    crear.mutate()
+    guardar.mutate()
   }
 
   return (
     <div className="space-y-6">
       <Card>
         <CardContent className="pt-5">
-          <form onSubmit={onCrear} className="grid gap-3 sm:grid-cols-3">
+          <form onSubmit={onGuardar} className="grid gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="ruc">RUC</Label>
               <Input id="ruc" value={ruc} onChange={(e) => setRuc(e.target.value)} maxLength={11} required />
@@ -119,10 +129,17 @@ export function EmpresasPage() {
               <Input id="razon" value={razonSocial} onChange={(e) => setRazonSocial(e.target.value)} required />
             </div>
             <div className="flex items-end">
-              <Button type="submit" disabled={crear.isPending}>
-                Crear empresa
+              <Button type="submit" disabled={guardar.isPending}>
+                {editando ? "Guardar cambios" : "Crear empresa"}
               </Button>
             </div>
+            {editando && (
+              <div className="flex items-end">
+                <Button type="button" variant="ghost" onClick={limpiar}>
+                  Cancelar
+                </Button>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>
@@ -134,7 +151,7 @@ export function EmpresasPage() {
               <tr>
                 <th className="p-3">RUC</th>
                 <th className="p-3">Razón social</th>
-                <th className="p-3 text-right">Módulos</th>
+                <th className="p-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -142,10 +159,23 @@ export function EmpresasPage() {
                 <tr key={c.id} className="border-b last:border-0">
                   <td className="p-3 font-mono text-xs">{c.ruc}</td>
                   <td className="p-3 font-medium">{c.razon_social}</td>
-                  <td className="p-3 text-right">
-                    <Button size="sm" variant="outline" onClick={() => setSeleccionada(c)}>
-                      Gestionar
-                    </Button>
+                  <td className="p-3">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditando(c)
+                          setRuc(c.ruc)
+                          setRazonSocial(c.razon_social)
+                        }}
+                      >
+                        Editar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setSeleccionada(c)}>
+                        Módulos
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -14,6 +14,7 @@ export interface CreateJobInput {
   archivo: File
   sin_sire: boolean
   reutilizar_propuesta: boolean
+  cobertura_fechas: string[] | null
 }
 
 export async function createJob(input: CreateJobInput): Promise<ReconciliationJob> {
@@ -23,6 +24,9 @@ export async function createJob(input: CreateJobInput): Promise<ReconciliationJo
   form.append("archivo", input.archivo)
   form.append("sin_sire", String(input.sin_sire))
   form.append("reutilizar_propuesta", String(input.reutilizar_propuesta))
+  if (input.tipo_libro === "ventas" && input.cobertura_fechas !== null) {
+    form.append("cobertura_fechas", JSON.stringify(input.cobertura_fechas))
+  }
   // Content-Type undefined → el navegador fija multipart con su boundary.
   const { data } = await api.post<ReconciliationJob>("/api/sire/jobs", form, {
     headers: { "Content-Type": undefined },
@@ -92,19 +96,62 @@ export async function deleteSavedMapping(tipoLibro: TipoLibro): Promise<void> {
   await api.delete("/api/sire/file-mapping", { params: { tipo_libro: tipoLibro } })
 }
 
+export interface ColumnaArchivo {
+  idx: number
+  header: string | null
+  muestras: string[]
+}
+
+export interface CampoRequerido {
+  campo: string
+  etiqueta: string
+  obligatorio: boolean
+}
+
+export interface MapeoConfig {
+  delimiter: string
+  encoding: string
+  has_header: boolean
+  skip_rows: number
+  serie_numero_combinado: boolean
+  columnas: Record<string, number>
+}
+
+export interface AnalisisArchivo {
+  nivel: string
+  config: MapeoConfig
+  columnas_archivo: ColumnaArchivo[]
+  campos: CampoRequerido[]
+  validacion: { ok: boolean; faltantes: string[]; avisos: string[] }
+}
+
 export async function analizarArchivo(
   tipoLibro: TipoLibro,
   archivo: File,
-): Promise<Record<string, unknown>> {
+): Promise<AnalisisArchivo> {
   const form = new FormData()
   form.append("tipo_libro", tipoLibro)
   form.append("archivo", archivo)
-  const { data } = await api.post<Record<string, unknown>>(
+  const { data } = await api.post<AnalisisArchivo>(
     "/api/sire/file-mapping/analizar",
     form,
     { headers: { "Content-Type": undefined } },
   )
   return data
+}
+
+export async function guardarFormato(
+  tipoLibro: TipoLibro,
+  config: MapeoConfig,
+  archivo: File,
+): Promise<void> {
+  const form = new FormData()
+  form.append("tipo_libro", tipoLibro)
+  form.append("config", JSON.stringify(config))
+  form.append("archivo", archivo)
+  await api.post("/api/sire/file-mapping/guardar", form, {
+    headers: { "Content-Type": undefined },
+  })
 }
 
 // ─────────────────────── Descargas ───────────────────────

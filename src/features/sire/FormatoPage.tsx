@@ -2,7 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { analizarArchivo, deleteSavedMapping, getSavedMapping } from "@/features/sire/api"
+import {
+  analizarArchivo,
+  deleteSavedMapping,
+  getSavedMapping,
+  guardarFormato,
+} from "@/features/sire/api"
+import { MapeoEditor } from "@/features/sire/MapeoEditor"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Button } from "@/shared/ui/button"
@@ -11,15 +17,17 @@ import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { Select } from "@/shared/ui/select"
 
+import type { AnalisisArchivo, MapeoConfig } from "@/features/sire/api"
 import type { TipoLibro } from "@/shared/types"
 
 export function FormatoPage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const queryClient = useQueryClient()
   const [tipoLibro, setTipoLibro] = useState<TipoLibro>("compras")
-  const [analisis, setAnalisis] = useState<Record<string, unknown> | null>(null)
+  const [archivo, setArchivo] = useState<File | null>(null)
+  const [analisis, setAnalisis] = useState<AnalisisArchivo | null>(null)
 
-  const { data } = useQuery({
+  const { data: saved } = useQuery({
     queryKey: ["sire", "mapping", companyId, tipoLibro],
     queryFn: () => getSavedMapping(tipoLibro),
     enabled: companyId != null,
@@ -35,13 +43,22 @@ export function FormatoPage() {
   })
 
   const analizar = useMutation({
-    mutationFn: (archivo: File) => analizarArchivo(tipoLibro, archivo),
-    onSuccess: (resultado) => setAnalisis(resultado),
+    mutationFn: (f: File) => analizarArchivo(tipoLibro, f),
+    onSuccess: (res) => setAnalisis(res),
     onError: (err) => toast.error(apiError(err, "No se pudo analizar el archivo")),
   })
 
+  const guardar = useMutation({
+    mutationFn: (config: MapeoConfig) => guardarFormato(tipoLibro, config, archivo as File),
+    onSuccess: () => {
+      toast.success("Formato guardado")
+      queryClient.invalidateQueries({ queryKey: ["sire", "mapping"] })
+    },
+    onError: (err) => toast.error(apiError(err, "El mapeo no superó la validación")),
+  })
+
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-3xl space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="tipo_libro">Libro</Label>
         <Select
@@ -61,11 +78,11 @@ export function FormatoPage() {
       <Card>
         <CardContent className="flex items-center justify-between pt-5">
           <p className="text-sm">
-            {data
+            {saved
               ? `Formato guardado para ${tipoLibro}.`
               : `Sin formato guardado para ${tipoLibro} (se autodetecta).`}
           </p>
-          {data && (
+          {saved && (
             <Button
               size="sm"
               variant="outline"
@@ -79,14 +96,16 @@ export function FormatoPage() {
       </Card>
 
       <div className="space-y-1.5">
-        <Label htmlFor="archivo">Analizar un archivo (previsualiza columnas)</Label>
+        <Label htmlFor="archivo">Analizar un archivo para mapear sus columnas</Label>
         <Input
           id="archivo"
           type="file"
           accept=".txt,.csv"
           onChange={(e) => {
-            const archivo = e.target.files?.[0]
-            if (archivo) analizar.mutate(archivo)
+            const f = e.target.files?.[0] ?? null
+            setArchivo(f)
+            setAnalisis(null)
+            if (f) analizar.mutate(f)
           }}
         />
       </div>
@@ -94,9 +113,11 @@ export function FormatoPage() {
       {analisis && (
         <Card>
           <CardContent className="pt-5">
-            <pre className="max-h-80 overflow-auto text-xs">
-              {JSON.stringify(analisis.config ?? analisis, null, 2)}
-            </pre>
+            <MapeoEditor
+              analisis={analisis}
+              onGuardar={(config) => guardar.mutate(config)}
+              guardando={guardar.isPending}
+            />
           </CardContent>
         </Card>
       )}

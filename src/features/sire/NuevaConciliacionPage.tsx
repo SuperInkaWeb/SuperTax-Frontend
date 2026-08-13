@@ -20,19 +20,29 @@ export function NuevaConciliacionPage() {
   const [archivo, setArchivo] = useState<File | null>(null)
   const [sinSire, setSinSire] = useState(false)
   const [reutilizar, setReutilizar] = useState(false)
+  const [coberturaTexto, setCoberturaTexto] = useState("")
 
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const crear = useMutation({
-    mutationFn: () =>
-      createJob({
+    mutationFn: () => {
+      const fechas =
+        tipoLibro === "ventas"
+          ? coberturaTexto
+              .split(/[\s,]+/)
+              .map((f) => f.trim())
+              .filter(Boolean)
+          : null
+      return createJob({
         periodo,
         tipo_libro: tipoLibro,
         archivo: archivo as File,
         sin_sire: sinSire,
         reutilizar_propuesta: reutilizar,
-      }),
+        cobertura_fechas: fechas,
+      })
+    },
     onSuccess: () => {
       toast.success("Conciliación creada — se está procesando")
       queryClient.invalidateQueries({ queryKey: ["sire", "jobs"] })
@@ -98,6 +108,19 @@ export function NuevaConciliacionPage() {
               />
               La empresa no está afiliada al SIRE (compras rezagadas)
             </label>
+          )}
+
+          {tipoLibro === "ventas" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cobertura">Cobertura de fechas (opcional)</Label>
+              <textarea
+                id="cobertura"
+                className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Una fecha AAAA-MM-DD por línea. Vacío = mes completo."
+                value={coberturaTexto}
+                onChange={(e) => setCoberturaTexto(e.target.value)}
+              />
+            </div>
           )}
 
           <label className="flex items-center gap-2 text-sm">

@@ -22,6 +22,14 @@ export async function createCompany(input: {
   return data
 }
 
+export async function updateCompany(
+  id: number,
+  input: { ruc: string; razon_social: string },
+): Promise<Company> {
+  const { data } = await api.put<Company>(`/api/companies/${id}`, input)
+  return data
+}
+
 // ─────────────────────── Módulos (entitlements) ───────────────────────
 export interface ModuleEntitlement {
   module_key: string

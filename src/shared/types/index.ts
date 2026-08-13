@@ -27,4 +27,8 @@ export interface ReconciliationJob {
   igv_diferencia_total: number | null
   tiene_alertas_rojas: boolean | null
   has_report: boolean
+  has_csv_a: boolean
+  has_csv_b: boolean
+  has_csv_c: boolean
+  has_csv_d: boolean
 }

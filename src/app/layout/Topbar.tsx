@@ -1,19 +1,30 @@
 import { useAuth0 } from "@auth0/auth0-react"
-import { LogOut } from "lucide-react"
+import { LogOut, Moon, Sun } from "lucide-react"
 
 import { CompanySwitcher } from "@/app/layout/CompanySwitcher"
 import { useAuthStore } from "@/shared/stores/auth"
+import { useTheme } from "@/shared/stores/theme"
 import { Button } from "@/shared/ui/button"
 
 export function Topbar() {
   const { logout } = useAuth0()
   const user = useAuthStore((s) => s.user)
+  const theme = useTheme((s) => s.theme)
+  const toggleTheme = useTheme((s) => s.toggle)
 
   return (
     <header className="flex h-16 items-center gap-4 border-b bg-card px-6">
       <CompanySwitcher />
       <div className="ml-auto flex items-center gap-3">
         <span className="text-sm text-muted-foreground">{user?.nombre ?? user?.email}</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Cambiar tema"
+          onClick={toggleTheme}
+        >
+          {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </Button>
         <Button
           variant="ghost"
           size="icon"
