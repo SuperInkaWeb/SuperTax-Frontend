@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-ssr/
+
+# Entorno / secretos
+.env
+.env.local
+.env.*.local
+
+# Herramientas
+.vite/
+*.tsbuildinfo
+
+# IDE / SO
+.idea/
+.vscode/
+.DS_Store
