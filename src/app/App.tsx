@@ -13,8 +13,8 @@ import type { ReactNode } from "react"
 const DashboardPage = lazy(() =>
   import("@/features/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })),
 )
-const SireJobsPage = lazy(() =>
-  import("@/features/sire/SireJobsPage").then((m) => ({ default: m.SireJobsPage })),
+const SireRoutes = lazy(() =>
+  import("@/features/sire/SireRoutes").then((m) => ({ default: m.SireRoutes })),
 )
 
 function Cargando() {
@@ -47,7 +47,7 @@ export function App() {
               }
             >
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/sire" element={<SireJobsPage />} />
+              <Route path="/sire/*" element={<SireRoutes />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>
