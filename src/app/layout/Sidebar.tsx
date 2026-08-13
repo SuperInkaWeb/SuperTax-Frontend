@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils"
 const ITEMS = [
   { to: "/dashboard", label: "Inicio", icon: LayoutDashboard, enabled: true },
   { to: "/sire", label: "SIRE", icon: FileSpreadsheet, enabled: true },
-  { to: "/sunat", label: "SUNAT", icon: Download, enabled: false },
+  { to: "/sunat", label: "SUNAT", icon: Download, enabled: true },
   { to: "/scanner", label: "Escaneo", icon: ScanLine, enabled: false },
 ]
 

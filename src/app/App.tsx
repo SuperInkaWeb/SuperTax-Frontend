@@ -16,6 +16,9 @@ const DashboardPage = lazy(() =>
 const SireRoutes = lazy(() =>
   import("@/features/sire/SireRoutes").then((m) => ({ default: m.SireRoutes })),
 )
+const SunatRoutes = lazy(() =>
+  import("@/features/sunat/SunatRoutes").then((m) => ({ default: m.SunatRoutes })),
+)
 
 function Cargando() {
   return (
@@ -48,6 +51,7 @@ export function App() {
             >
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/sire/*" element={<SireRoutes />} />
+              <Route path="/sunat/*" element={<SunatRoutes />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>
