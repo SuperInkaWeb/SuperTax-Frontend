@@ -1,4 +1,10 @@
-import { Download, FileSpreadsheet, LayoutDashboard, ScanLine } from "lucide-react"
+import {
+  Download,
+  FileSpreadsheet,
+  LayoutDashboard,
+  ScanLine,
+  Settings,
+} from "lucide-react"
 import { NavLink } from "react-router-dom"
 
 import { cn } from "@/shared/lib/utils"
@@ -8,6 +14,7 @@ const ITEMS = [
   { to: "/sire", label: "SIRE", icon: FileSpreadsheet, enabled: true },
   { to: "/sunat", label: "SUNAT", icon: Download, enabled: true },
   { to: "/scanner", label: "Escaneo", icon: ScanLine, enabled: false },
+  { to: "/admin", label: "Administración", icon: Settings, enabled: true },
 ]
 
 export function Sidebar() {
