@@ -15,13 +15,18 @@ export interface TipoDocumento {
   campos: unknown
 }
 
-export interface UploadResult {
-  status: string
+export type ScannerJobStatus = "en_cola" | "procesando" | "completado" | "error"
+
+export interface ScannerJobCreated {
+  job_id: number
+  status: ScannerJobStatus
+}
+
+export interface ScannerJobStatusResponse {
   id: number
-  tipo_documento: string
-  tipo_etiqueta: string
-  confianza: number
-  campos: Record<string, unknown>
+  status: ScannerJobStatus
+  error_message: string | null
+  documento: Documento | null
 }
 
 export async function getTipos(): Promise<Record<string, TipoDocumento>> {
@@ -46,11 +51,16 @@ export async function updateDocumento(
   return data
 }
 
-export async function uploadAuto(file: File): Promise<UploadResult> {
+export async function uploadAuto(file: File): Promise<ScannerJobCreated> {
   const form = new FormData()
   form.append("file", file)
-  const { data } = await api.post<UploadResult>("/api/scanner/upload/auto", form, {
+  const { data } = await api.post<ScannerJobCreated>("/api/scanner/upload/auto", form, {
     headers: { "Content-Type": undefined },
   })
+  return data
+}
+
+export async function getScannerJob(jobId: number): Promise<ScannerJobStatusResponse> {
+  const { data } = await api.get<ScannerJobStatusResponse>(`/api/scanner/jobs/${jobId}`)
   return data
 }
