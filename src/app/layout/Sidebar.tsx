@@ -2,6 +2,7 @@ import {
   Download,
   FileSpreadsheet,
   LayoutDashboard,
+  LifeBuoy,
   ScanLine,
   Settings,
 } from "lucide-react"
@@ -33,6 +34,12 @@ function useNavItems(): NavItem[] {
     { to: "/sire", label: "SIRE", icon: FileSpreadsheet, visible: modulos.includes("sire") },
     { to: "/sunat", label: "SUNAT", icon: Download, visible: modulos.includes("sunat") },
     { to: "/scanner", label: "Escaneo", icon: ScanLine, visible: modulos.includes("scanner") },
+    {
+      to: "/soporte",
+      label: "Soporte",
+      icon: LifeBuoy,
+      visible: (user?.is_platform_admin ?? false) || companyId != null,
+    },
     { to: "/admin", label: "Administración", icon: Settings, visible: puedeAdministrar },
   ]
 }

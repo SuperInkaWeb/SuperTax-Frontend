@@ -27,6 +27,9 @@ const ScannerRoutes = lazy(() =>
 const AdminRoutes = lazy(() =>
   import("@/features/admin/AdminRoutes").then((m) => ({ default: m.AdminRoutes })),
 )
+const TicketsPage = lazy(() =>
+  import("@/features/tickets/TicketsPage").then((m) => ({ default: m.TicketsPage })),
+)
 
 function Cargando() {
   return (
@@ -62,6 +65,7 @@ export function App() {
             <Route path="/sire/*" element={<SireRoutes />} />
             <Route path="/sunat/*" element={<SunatRoutes />} />
             <Route path="/scanner/*" element={<ScannerRoutes />} />
+            <Route path="/soporte" element={<TicketsPage />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
