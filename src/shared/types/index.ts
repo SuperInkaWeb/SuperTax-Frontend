@@ -2,6 +2,8 @@ export interface Company {
   id: number
   ruc: string
   razon_social: string
+  role_key: string
+  modules: string[]
 }
 
 export interface Me {
