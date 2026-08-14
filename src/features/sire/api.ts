@@ -15,6 +15,8 @@ export interface CreateJobInput {
   sin_sire: boolean
   reutilizar_propuesta: boolean
   cobertura_fechas: string[] | null
+  mapeo_columnas?: MapeoConfig | null
+  guardar_formato?: boolean
 }
 
 export async function createJob(input: CreateJobInput): Promise<ReconciliationJob> {
@@ -27,10 +29,19 @@ export async function createJob(input: CreateJobInput): Promise<ReconciliationJo
   if (input.tipo_libro === "ventas" && input.cobertura_fechas !== null) {
     form.append("cobertura_fechas", JSON.stringify(input.cobertura_fechas))
   }
+  if (input.mapeo_columnas) {
+    form.append("mapeo_columnas", JSON.stringify(input.mapeo_columnas))
+  }
+  if (input.guardar_formato) form.append("guardar_formato", "true")
   // Content-Type undefined → el navegador fija multipart con su boundary.
   const { data } = await api.post<ReconciliationJob>("/api/sire/jobs", form, {
     headers: { "Content-Type": undefined },
   })
+  return data
+}
+
+export async function getJob(jobId: number): Promise<ReconciliationJob> {
+  const { data } = await api.get<ReconciliationJob>(`/api/sire/jobs/${jobId}`)
   return data
 }
 
@@ -80,7 +91,7 @@ export async function setCredentials(input: CredentialsInput): Promise<Credentia
 }
 
 // ─────────────────────── Formato de archivo ───────────────────────
-export interface SavedMapping {
+export interface SavedMapping extends MapeoConfig {
   tipo_libro: TipoLibro
   updated_at: string | null
 }
@@ -117,12 +128,24 @@ export interface MapeoConfig {
   columnas: Record<string, number>
 }
 
+export type NivelMapeo = "ple" | "plataforma" | "guardado" | "sugerido" | "desconocido"
+
+export interface ValidacionMapeo {
+  ok: boolean
+  aritmetica_pct: number | null
+  faltantes: string[]
+  avisos: string[]
+}
+
 export interface AnalisisArchivo {
-  nivel: string
+  nivel: NivelMapeo
+  formato: string | null
   config: MapeoConfig
   columnas_archivo: ColumnaArchivo[]
   campos: CampoRequerido[]
-  validacion: { ok: boolean; faltantes: string[]; avisos: string[] }
+  validacion: ValidacionMapeo
+  solo_lectura: boolean
+  fechas_detectadas: string[]
 }
 
 export async function analizarArchivo(
@@ -134,6 +157,23 @@ export async function analizarArchivo(
   form.append("archivo", archivo)
   const { data } = await api.post<AnalisisArchivo>(
     "/api/sire/file-mapping/analizar",
+    form,
+    { headers: { "Content-Type": undefined } },
+  )
+  return data
+}
+
+export async function validarMapeo(
+  tipoLibro: TipoLibro,
+  config: MapeoConfig,
+  archivo: File,
+): Promise<ValidacionMapeo> {
+  const form = new FormData()
+  form.append("tipo_libro", tipoLibro)
+  form.append("config", JSON.stringify(config))
+  form.append("archivo", archivo)
+  const { data } = await api.post<ValidacionMapeo>(
+    "/api/sire/file-mapping/validar",
     form,
     { headers: { "Content-Type": undefined } },
   )

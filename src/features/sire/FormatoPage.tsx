@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { CheckCircle2, Info, Loader2, Save, Trash2, Upload } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -7,120 +8,264 @@ import {
   deleteSavedMapping,
   getSavedMapping,
   guardarFormato,
+  validarMapeo,
 } from "@/features/sire/api"
-import { MapeoEditor } from "@/features/sire/MapeoEditor"
+import { MapeoArchivo } from "@/features/sire/MapeoArchivo"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
-import { Card, CardContent } from "@/shared/ui/card"
-import { Input } from "@/shared/ui/input"
-import { Label } from "@/shared/ui/label"
-import { Select } from "@/shared/ui/select"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 
-import type { AnalisisArchivo, MapeoConfig } from "@/features/sire/api"
+import type { AnalisisArchivo, MapeoConfig, ValidacionMapeo } from "@/features/sire/api"
 import type { TipoLibro } from "@/shared/types"
+
+const CAMPO_LABEL: Record<string, string> = {
+  fecha_emision: "Fecha de emisión",
+  tipo_cdp: "Tipo de comprobante",
+  serie: "Serie",
+  numero: "Número",
+  ruc_proveedor: "RUC del proveedor",
+  razon_social: "Razón social",
+  base_imponible: "Base imponible / BI DG",
+  igv: "IGV",
+  mto_exonerado: "Exonerado",
+  mto_inafecto: "Inafecto",
+  bi_dgng: "BI DGNG",
+  igv_dgng: "IGV DGNG",
+  bi_dng: "BI DNG",
+  igv_dng: "IGV DNG",
+  valor_adq_ng: "Adq. no gravadas",
+  importe_total: "Importe total",
+  moneda: "Moneda",
+  tipo_cambio: "Tipo de cambio",
+  status_description: "Estado del comprobante",
+}
 
 export function FormatoPage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const queryClient = useQueryClient()
-  const [tipoLibro, setTipoLibro] = useState<TipoLibro>("compras")
-  const [archivo, setArchivo] = useState<File | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [libro, setLibro] = useState<TipoLibro>("ventas")
+  const [file, setFile] = useState<File | null>(null)
   const [analisis, setAnalisis] = useState<AnalisisArchivo | null>(null)
+  const [config, setConfig] = useState<MapeoConfig | null>(null)
+  const [validacion, setValidacion] = useState<ValidacionMapeo | null>(null)
+  const [analizando, setAnalizando] = useState(false)
+  const [validando, setValidando] = useState(false)
 
-  const { data: saved } = useQuery({
-    queryKey: ["sire", "mapping", companyId, tipoLibro],
-    queryFn: () => getSavedMapping(tipoLibro),
+  const { data: guardado } = useQuery({
+    queryKey: ["sire", "mapping", companyId, libro],
+    queryFn: () => getSavedMapping(libro),
     enabled: companyId != null,
   })
 
+  // Reset al cambiar de libro.
+  useEffect(() => {
+    setFile(null)
+    setAnalisis(null)
+    setConfig(null)
+    setValidacion(null)
+  }, [libro])
+
+  // Análisis automático al subir un archivo.
+  useEffect(() => {
+    if (!file) {
+      setAnalisis(null)
+      setConfig(null)
+      setValidacion(null)
+      return
+    }
+    let cancelado = false
+    setAnalizando(true)
+    analizarArchivo(libro, file)
+      .then((a) => {
+        if (cancelado) return
+        setAnalisis(a)
+        setConfig(a.config)
+        setValidacion(a.validacion)
+      })
+      .catch((e) => {
+        if (!cancelado) toast.error(apiError(e, "No se pudo analizar el archivo"))
+      })
+      .finally(() => {
+        if (!cancelado) setAnalizando(false)
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [file, libro])
+
+  async function handleRevalidar() {
+    if (!file || !config) return
+    setValidando(true)
+    try {
+      setValidacion(await validarMapeo(libro, config, file))
+    } catch (e) {
+      toast.error(apiError(e, "No se pudo validar el mapeo"))
+    } finally {
+      setValidando(false)
+    }
+  }
+
+  const guardar = useMutation({
+    mutationFn: () => guardarFormato(libro, config as MapeoConfig, file as File),
+    onSuccess: () => {
+      toast.success("Formato guardado para tu empresa")
+      queryClient.invalidateQueries({ queryKey: ["sire", "mapping"] })
+      setFile(null)
+      setAnalisis(null)
+      setConfig(null)
+      setValidacion(null)
+    },
+    onError: (e) => toast.error(apiError(e, "El mapeo no superó la validación")),
+  })
+
   const eliminar = useMutation({
-    mutationFn: () => deleteSavedMapping(tipoLibro),
+    mutationFn: () => deleteSavedMapping(libro),
     onSuccess: () => {
       toast.success("Formato eliminado")
       queryClient.invalidateQueries({ queryKey: ["sire", "mapping"] })
     },
-    onError: (err) => toast.error(apiError(err, "No se pudo eliminar")),
+    onError: (e) => toast.error(apiError(e, "No se pudo eliminar")),
   })
 
-  const analizar = useMutation({
-    mutationFn: (f: File) => analizarArchivo(tipoLibro, f),
-    onSuccess: (res) => setAnalisis(res),
-    onError: (err) => toast.error(apiError(err, "No se pudo analizar el archivo")),
-  })
-
-  const guardar = useMutation({
-    mutationFn: (config: MapeoConfig) => guardarFormato(tipoLibro, config, archivo as File),
-    onSuccess: () => {
-      toast.success("Formato guardado")
-      queryClient.invalidateQueries({ queryKey: ["sire", "mapping"] })
-    },
-    onError: (err) => toast.error(apiError(err, "El mapeo no superó la validación")),
-  })
+  const esEstandar = analisis?.nivel === "ple" || analisis?.nivel === "plataforma"
+  const mapeoListo = analisis !== null && validacion !== null && validacion.ok
 
   return (
-    <div className="max-w-3xl space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="tipo_libro">Libro</Label>
-        <Select
-          id="tipo_libro"
-          className="max-w-xs"
-          value={tipoLibro}
-          onChange={(e) => {
-            setTipoLibro(e.target.value as TipoLibro)
-            setAnalisis(null)
-          }}
-        >
-          <option value="compras">Compras</option>
-          <option value="ventas">Ventas</option>
-        </Select>
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">Formato de archivo</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Configura una sola vez cómo leer el archivo de tu empresa. Se usará en tus conciliaciones.
+        </p>
       </div>
 
-      <Card>
-        <CardContent className="flex items-center justify-between pt-5">
-          <p className="text-sm">
-            {saved
-              ? `Formato guardado para ${tipoLibro}.`
-              : `Sin formato guardado para ${tipoLibro} (se autodetecta).`}
-          </p>
-          {saved && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => eliminar.mutate()}
-              disabled={eliminar.isPending}
-            >
-              Eliminar
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="archivo">Analizar un archivo para mapear sus columnas</Label>
-        <Input
-          id="archivo"
-          type="file"
-          accept=".txt,.csv"
-          onChange={(e) => {
-            const f = e.target.files?.[0] ?? null
-            setArchivo(f)
-            setAnalisis(null)
-            if (f) analizar.mutate(f)
-          }}
-        />
+      {/* Selector de libro (segmentado) */}
+      <div className="inline-flex rounded-lg border bg-muted/30 p-1">
+        {(["ventas", "compras"] as TipoLibro[]).map((l) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => setLibro(l)}
+            className={`cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+              libro === l ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {l}
+          </button>
+        ))}
       </div>
 
-      {analisis && (
+      {/* Formato guardado actual */}
+      {guardado && (
         <Card>
-          <CardContent className="pt-5">
-            <MapeoEditor
-              analisis={analisis}
-              onGuardar={(config) => guardar.mutate(config)}
-              guardando={guardar.isPending}
-            />
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                <CheckCircle2 className="size-4 text-emerald-600" />
+                Formato configurado para {libro}
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => eliminar.mutate()}
+                disabled={eliminar.isPending}
+              >
+                <Trash2 className="size-3.5" /> Eliminar
+              </Button>
+            </div>
+            <CardDescription>
+              Se usa automáticamente al conciliar {libro}. Para cambiarlo, sube una muestra nueva
+              abajo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(guardado.columnas).map(([campo, col]) => (
+                <div
+                  key={campo}
+                  className="flex items-center justify-between rounded-lg border p-2 text-sm"
+                >
+                  <span>{CAMPO_LABEL[campo] ?? campo}</span>
+                  <span className="font-mono text-xs text-muted-foreground">Col {col + 1}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Configurador */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base text-foreground">
+            {guardado ? "Cambiar el formato" : "Configurar el formato"}
+          </CardTitle>
+          <CardDescription>
+            Sube un archivo de muestra de {libro} (TXT o CSV) para definir el mapeo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div
+            onClick={() => fileRef.current?.click()}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors ${
+              file ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+            }`}
+          >
+            <Upload className="size-7 text-muted-foreground" />
+            <p className="text-sm font-medium">
+              {file ? file.name : "Haz clic para seleccionar una muestra"}
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".txt,.csv"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
+
+          {analizando && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Analizando el formato…
+            </div>
+          )}
+
+          {esEstandar && (
+            <Alert variant="info">
+              <Info />
+              <AlertDescription>
+                Este archivo es un <strong>formato estándar reconocido</strong>
+                {analisis?.formato ? ` (${analisis.formato})` : ""} — no requiere configuración
+                manual. Puedes conciliarlo directamente.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {analisis && !esEstandar && config && (
+            <>
+              <MapeoArchivo
+                analisis={analisis}
+                config={config}
+                validacion={validacion}
+                validando={validando}
+                onChange={setConfig}
+                onRevalidar={handleRevalidar}
+              />
+              <Button onClick={() => guardar.mutate()} disabled={!mapeoListo || guardar.isPending}>
+                {guardar.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                {guardado ? "Actualizar formato guardado" : "Guardar formato"}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
