@@ -1,10 +1,11 @@
 import { useAuth0 } from "@auth0/auth0-react"
 import { lazy, Suspense } from "react"
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
+import { Navigate, Route, Routes } from "react-router-dom"
 
 import { AppShell } from "@/app/layout/AppShell"
 import { Providers } from "@/app/providers"
 import { LoginPage } from "@/features/auth/LoginPage"
+import { SolicitarAccesoPage } from "@/features/onboarding/SolicitarAccesoPage"
 import { Spinner } from "@/shared/ui/spinner"
 
 import type { ReactNode } from "react"
@@ -44,27 +45,26 @@ function Protected({ children }: { children: ReactNode }) {
 export function App() {
   return (
     <Providers>
-      <BrowserRouter>
-        <Suspense fallback={<Cargando />}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              element={
-                <Protected>
-                  <AppShell />
-                </Protected>
-              }
-            >
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/sire/*" element={<SireRoutes />} />
-              <Route path="/sunat/*" element={<SunatRoutes />} />
-              <Route path="/scanner/*" element={<ScannerRoutes />} />
-              <Route path="/admin/*" element={<AdminRoutes />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Route>
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+      <Suspense fallback={<Cargando />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/solicitar-acceso" element={<SolicitarAccesoPage />} />
+          <Route
+            element={
+              <Protected>
+                <AppShell />
+              </Protected>
+            }
+          >
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/sire/*" element={<SireRoutes />} />
+            <Route path="/sunat/*" element={<SunatRoutes />} />
+            <Route path="/scanner/*" element={<ScannerRoutes />} />
+            <Route path="/admin/*" element={<AdminRoutes />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </Providers>
   )
 }

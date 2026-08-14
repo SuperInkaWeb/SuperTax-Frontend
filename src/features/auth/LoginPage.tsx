@@ -1,5 +1,5 @@
 import { useAuth0 } from "@auth0/auth0-react"
-import { Navigate } from "react-router-dom"
+import { Link, Navigate } from "react-router-dom"
 
 import { AUTH0_DOMAIN } from "@/shared/lib/config"
 import { Button } from "@/shared/ui/button"
@@ -8,6 +8,10 @@ import { Spinner } from "@/shared/ui/spinner"
 export function LoginPage() {
   const { isAuthenticated, isLoading, loginWithRedirect } = useAuth0()
   const auth0Configurado = AUTH0_DOMAIN.length > 0
+
+  function iniciar() {
+    void loginWithRedirect()
+  }
 
   if (isLoading) {
     return (
@@ -26,9 +30,17 @@ export function LoginPage() {
           <p className="mt-1 text-sm text-muted-foreground">Escaneo · SUNAT · SIRE</p>
         </div>
         {auth0Configurado ? (
-          <Button className="w-full" onClick={() => loginWithRedirect()}>
-            Iniciar sesión
-          </Button>
+          <>
+            <Button className="w-full" onClick={iniciar}>
+              Iniciar sesión
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              ¿No tienes cuenta?{" "}
+              <Link to="/solicitar-acceso" className="font-medium text-foreground underline">
+                Solicitar acceso
+              </Link>
+            </p>
+          </>
         ) : (
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             Configura <code>VITE_AUTH0_DOMAIN</code>, <code>VITE_AUTH0_CLIENT_ID</code> y{" "}
