@@ -12,7 +12,7 @@ export interface Documento {
 
 export interface TipoDocumento {
   etiqueta: string
-  campos: unknown
+  campos: Record<string, string>
 }
 
 export type ScannerJobStatus = "en_cola" | "procesando" | "completado" | "error"
@@ -51,13 +51,31 @@ export async function updateDocumento(
   return data
 }
 
-export async function uploadAuto(file: File): Promise<ScannerJobCreated> {
+export async function uploadAuto(
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<ScannerJobCreated> {
   const form = new FormData()
   form.append("file", file)
   const { data } = await api.post<ScannerJobCreated>("/api/scanner/upload/auto", form, {
     headers: { "Content-Type": undefined },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100))
+    },
   })
   return data
+}
+
+/** Espera a que el worker procese el documento (polling del job). */
+export async function esperarDocumento(jobId: number): Promise<Documento> {
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 1500))
+    const job = await getScannerJob(jobId)
+    if (job.status === "completado" && job.documento) return job.documento
+    if (job.status === "error") {
+      throw new Error(job.error_message ?? "No se pudo procesar el documento")
+    }
+  }
 }
 
 export async function getScannerJob(jobId: number): Promise<ScannerJobStatusResponse> {
