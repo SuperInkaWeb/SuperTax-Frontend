@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -24,9 +25,10 @@ import type { FormEvent } from "react"
 const MODULOS = [
   { key: "sire", label: "SIRE" },
   { key: "sunat", label: "Descarga SUNAT" },
+  { key: "scanner", label: "Escaneo" },
 ]
 
-function ModulosEmpresa({ company }: { company: Company }) {
+function ModulosEmpresa({ company, onClose }: { company: Company; onClose: () => void }) {
   const queryClient = useQueryClient()
   const { data } = useQuery({
     queryKey: ["admin", "company-modules", company.id],
@@ -46,7 +48,16 @@ function ModulosEmpresa({ company }: { company: Company }) {
   return (
     <Card>
       <CardContent className="space-y-2 pt-5">
-        <p className="text-sm font-medium">Módulos de {company.razon_social}</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Módulos de {company.razon_social}</p>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
         {MODULOS.map((m) => (
           <label key={m.key} className="flex items-center gap-2 text-sm">
             <input
@@ -184,7 +195,9 @@ export function EmpresasPage() {
         </CardContent>
       </Card>
 
-      {seleccionada && <ModulosEmpresa company={seleccionada} />}
+      {seleccionada && (
+        <ModulosEmpresa company={seleccionada} onClose={() => setSeleccionada(null)} />
+      )}
     </div>
   )
 }
