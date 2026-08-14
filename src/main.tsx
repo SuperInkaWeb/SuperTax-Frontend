@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom"
 
 import { App } from "@/app/App"
 import { Auth0ProviderWithNavigate } from "@/app/Auth0ProviderWithNavigate"
+import { ErrorBoundary } from "@/app/ErrorBoundary"
 import { Auth0Bridge } from "@/features/auth/Auth0Bridge"
 
 import "./index.css"
@@ -13,7 +14,9 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <Auth0ProviderWithNavigate>
         <Auth0Bridge />
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </Auth0ProviderWithNavigate>
     </BrowserRouter>
   </StrictMode>,

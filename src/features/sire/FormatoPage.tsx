@@ -16,6 +16,7 @@ import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { confirmar } from "@/shared/ui/confirm"
 
 import type { AnalisisArchivo, MapeoConfig, ValidacionMapeo } from "@/features/sire/api"
 import type { TipoLibro } from "@/shared/types"
@@ -170,8 +171,16 @@ export function FormatoPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => eliminar.mutate()}
                 disabled={eliminar.isPending}
+                onClick={async () => {
+                  const ok = await confirmar({
+                    title: `¿Eliminar el formato de ${libro}?`,
+                    description: "Volverá a autodetectarse en las próximas conciliaciones.",
+                    confirmLabel: "Eliminar",
+                    destructive: true,
+                  })
+                  if (ok) eliminar.mutate()
+                }}
               >
                 <Trash2 className="size-3.5" /> Eliminar
               </Button>

@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom"
 
+import { NotFoundPage } from "@/app/NotFoundPage"
 import { CredencialesPage } from "@/features/sire/CredencialesPage"
 import { FormatoPage } from "@/features/sire/FormatoPage"
 import { JobDetailPage } from "@/features/sire/JobDetailPage"
@@ -17,6 +18,7 @@ export function SireRoutes() {
         <Route path="nueva" element={<NuevaConciliacionPage />} />
         <Route path="credenciales" element={<CredencialesPage />} />
         <Route path="formato" element={<FormatoPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   )

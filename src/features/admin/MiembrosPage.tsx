@@ -12,6 +12,7 @@ import {
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Button } from "@/shared/ui/button"
+import { confirmar } from "@/shared/ui/confirm"
 import { Card, CardContent } from "@/shared/ui/card"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
@@ -154,7 +155,15 @@ export function MiembrosPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => quitar.mutate(m.membership_id)}
+                      onClick={async () => {
+                        const ok = await confirmar({
+                          title: `¿Remover a ${m.nombre}?`,
+                          description: "Perderá el acceso a esta empresa.",
+                          confirmLabel: "Remover",
+                          destructive: true,
+                        })
+                        if (ok) quitar.mutate(m.membership_id)
+                      }}
                     >
                       Remover
                     </Button>

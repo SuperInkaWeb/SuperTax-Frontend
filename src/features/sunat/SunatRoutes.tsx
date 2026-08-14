@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom"
 
+import { NotFoundPage } from "@/app/NotFoundPage"
 import { CredencialesPage } from "@/features/sunat/CredencialesPage"
 import { DescargarPage } from "@/features/sunat/DescargarPage"
 import { DrivePage } from "@/features/sunat/DrivePage"
@@ -14,6 +15,7 @@ export function SunatRoutes() {
         <Route path="credenciales" element={<CredencialesPage />} />
         <Route path="drive" element={<DrivePage />} />
         <Route path="historial" element={<HistorialPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   )

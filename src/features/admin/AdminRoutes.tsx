@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom"
 
+import { NotFoundPage } from "@/app/NotFoundPage"
 import { AdminLayout } from "@/features/admin/AdminLayout"
 import { EmpresasPage } from "@/features/admin/EmpresasPage"
 import { MiembrosPage } from "@/features/admin/MiembrosPage"
@@ -17,6 +18,7 @@ export function AdminRoutes() {
         />
         <Route path="solicitudes" element={<SolicitudesPage />} />
         <Route path="miembros" element={<MiembrosPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   )

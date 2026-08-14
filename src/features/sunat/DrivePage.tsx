@@ -7,6 +7,7 @@ import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
+import { confirmar } from "@/shared/ui/confirm"
 import { Spinner } from "@/shared/ui/spinner"
 
 export function DrivePage() {
@@ -67,8 +68,16 @@ export function DrivePage() {
         {data?.connected ? (
           <Button
             variant="outline"
-            onClick={() => desconectar.mutate()}
             disabled={desconectar.isPending}
+            onClick={async () => {
+              const ok = await confirmar({
+                title: "¿Desconectar Google Drive?",
+                description: "Las descargas ya no podrán subirse a Drive hasta reconectar.",
+                confirmLabel: "Desconectar",
+                destructive: true,
+              })
+              if (ok) desconectar.mutate()
+            }}
           >
             Desconectar
           </Button>

@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
 
 import { AppShell } from "@/app/layout/AppShell"
+import { NotFoundPage } from "@/app/NotFoundPage"
 import { Providers } from "@/app/providers"
 import { LoginPage } from "@/features/auth/LoginPage"
 import { SolicitarAccesoPage } from "@/features/onboarding/SolicitarAccesoPage"
@@ -56,12 +57,13 @@ export function App() {
               </Protected>
             }
           >
+            <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/sire/*" element={<SireRoutes />} />
             <Route path="/sunat/*" element={<SunatRoutes />} />
             <Route path="/scanner/*" element={<ScannerRoutes />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </Suspense>
