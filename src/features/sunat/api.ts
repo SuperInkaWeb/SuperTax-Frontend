@@ -8,6 +8,7 @@ const MULTIPART = { headers: { "Content-Type": undefined } }
 export interface SunatCredentialsStatus {
   configured: boolean
   ruc: string | null
+  usuario: string | null
 }
 
 export interface SunatCredentialsInput {
@@ -29,10 +30,14 @@ export async function setCredentials(
 }
 
 // ─────────────────────── Historial / resultados ───────────────────────
-export interface JobResult {
-  id: number
+export type SunatJobStatus = "en_cola" | "procesando" | "completado" | "error" | "cancelado"
+
+export interface SunatJobItem {
   job_id: string
+  status: SunatJobStatus
   created_at: string
+  completed_at: string | null
+  has_result: boolean
 }
 
 export interface ResultadoComprobante {
@@ -44,8 +49,8 @@ export interface ResultadoComprobante {
   pide_xml: boolean
 }
 
-export async function listJobs(): Promise<JobResult[]> {
-  const { data } = await api.get<JobResult[]>("/api/sunat/jobs")
+export async function listJobs(): Promise<SunatJobItem[]> {
+  const { data } = await api.get<SunatJobItem[]>("/api/sunat/jobs")
   return data
 }
 
