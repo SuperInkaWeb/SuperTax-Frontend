@@ -8,7 +8,11 @@ import { Button } from "@/shared/ui/button"
 
 /** Selector de empresa activa (Modelo B): un usuario opera varias empresas. */
 export function CompanySwitcher() {
-  const companies = useAuthStore((s) => s.user?.companies ?? [])
+  // Se selecciona el usuario (referencia estable) y se deriva el array fuera del
+  // selector: devolver `?? []` dentro del selector crea un array nuevo en cada
+  // render y provoca un bucle infinito en useSyncExternalStore (React #185).
+  const user = useAuthStore((s) => s.user)
+  const companies = user?.companies ?? []
   const companyId = useActiveCompany((s) => s.companyId)
   const setCompanyId = useActiveCompany((s) => s.setCompanyId)
   const [agregando, setAgregando] = useState(false)
