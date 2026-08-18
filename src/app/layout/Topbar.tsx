@@ -1,6 +1,8 @@
 import { Menu, Moon, Sun } from "lucide-react"
 
 import { CompanySwitcher } from "@/app/layout/CompanySwitcher"
+import { GlobalSearch } from "@/app/layout/GlobalSearch"
+import { NotificationsBell } from "@/app/layout/NotificationsBell"
 import { UserMenu } from "@/app/layout/UserMenu"
 import { useTheme } from "@/shared/stores/theme"
 import { Button } from "@/shared/ui/button"
@@ -23,6 +25,8 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       <CompanySwitcher />
 
       <div className="ml-auto flex items-center gap-2">
+        <GlobalSearch />
+        <NotificationsBell />
         <Button variant="ghost" size="icon" aria-label="Cambiar tema" onClick={toggleTheme}>
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </Button>

@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { NavLink } from "react-router-dom"
 
+import { useActivity } from "@/app/layout/useActivity"
 import { cn } from "@/shared/lib/utils"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { useAuthStore } from "@/shared/stores/auth"
@@ -19,6 +20,7 @@ interface NavItem {
   label: string
   icon: LucideIcon
   visible: boolean
+  badge?: number
 }
 
 function useNavItems(): NavItem[] {
@@ -26,13 +28,26 @@ function useNavItems(): NavItem[] {
   const companyId = useActiveCompany((s) => s.companyId)
   const empresa = user?.companies.find((c) => c.id === companyId)
   const modulos = empresa?.modules ?? []
+  const actividad = useActivity()
   const puedeAdministrar =
     (user?.is_platform_admin ?? false) || empresa?.role_key === "admin_empresa"
 
   return [
     { to: "/dashboard", label: "Inicio", icon: LayoutDashboard, visible: true },
-    { to: "/sire", label: "SIRE", icon: FileSpreadsheet, visible: modulos.includes("sire") },
-    { to: "/sunat", label: "SUNAT", icon: Download, visible: modulos.includes("sunat") },
+    {
+      to: "/sire",
+      label: "SIRE",
+      icon: FileSpreadsheet,
+      visible: modulos.includes("sire"),
+      badge: actividad.sire.activos,
+    },
+    {
+      to: "/sunat",
+      label: "SUNAT",
+      icon: Download,
+      visible: modulos.includes("sunat"),
+      badge: actividad.sunat.activos,
+    },
     { to: "/scanner", label: "Escaneo", icon: ScanLine, visible: modulos.includes("scanner") },
     {
       to: "/soporte",
@@ -52,7 +67,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex flex-col gap-1 px-3">
         {items
           .filter((item) => item.visible)
-          .map(({ to, label, icon: Icon }) => (
+          .map(({ to, label, icon: Icon, badge }) => (
             <NavLink
               key={to}
               to={to}
@@ -69,6 +84,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             >
               <Icon className="size-4" />
               {label}
+              {badge ? (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
+                  {badge}
+                </span>
+              ) : null}
             </NavLink>
           ))}
       </nav>
