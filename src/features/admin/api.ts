@@ -129,3 +129,63 @@ export async function listRoles(): Promise<Role[]> {
   const { data } = await api.get<Role[]>("/api/roles")
   return data
 }
+
+// ─────────────────────── Equipo (multi-empresa) ───────────────────────
+export interface TeamCompany {
+  id: number
+  ruc: string
+  razon_social: string
+}
+
+export interface TeamMembershipItem {
+  membership_id: number
+  company_id: number
+  razon_social: string
+  role_key: string
+  status: "activo" | "inactivo"
+}
+
+export interface TeamMember {
+  user_id: number
+  email: string
+  nombre: string
+  memberships: TeamMembershipItem[]
+}
+
+export interface TeamAssignResult {
+  user_id: number
+  email: string
+  asignadas: number[]
+  ya_existentes: number[]
+}
+
+export async function listAdminCompanies(): Promise<TeamCompany[]> {
+  const { data } = await api.get<TeamCompany[]>("/api/team/companies")
+  return data
+}
+
+export async function listTeamMembers(): Promise<TeamMember[]> {
+  const { data } = await api.get<TeamMember[]>("/api/team/members")
+  return data
+}
+
+export async function assignToCompanies(input: {
+  email: string
+  nombre: string
+  role_key: string
+  company_ids: number[]
+}): Promise<TeamAssignResult> {
+  const { data } = await api.post<TeamAssignResult>("/api/team/assign", input)
+  return data
+}
+
+export async function setMembershipStatus(
+  membershipId: number,
+  status: "activo" | "inactivo",
+): Promise<TeamMembershipItem> {
+  const { data } = await api.patch<TeamMembershipItem>(
+    `/api/team/memberships/${membershipId}`,
+    { status },
+  )
+  return data
+}

@@ -14,6 +14,7 @@ export function AdminLayout() {
         ]
       : []),
     { to: "/admin/miembros", label: "Miembros", end: false },
+    { to: "/admin/equipo", label: "Equipo", end: false },
   ]
 
   return (
