@@ -26,6 +26,7 @@ export interface ReconciliationJob {
   created_at: string
   completed_at: string | null
   error_message: string | null
+  can_resume: boolean
   igv_diferencia_total: number | null
   tiene_alertas_rojas: boolean | null
   escenario_a_count: number | null

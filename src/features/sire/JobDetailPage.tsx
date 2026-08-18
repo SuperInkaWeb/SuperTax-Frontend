@@ -114,7 +114,7 @@ export function JobDetailPage() {
   }
 
   const activo = job.status === "en_cola" || job.status === "procesando"
-  const puedeReanudar = job.status === "error"
+  const puedeReanudar = job.can_resume
   const tieneResultado = job.status === "completado" && job.escenario_a_count !== null
   const esReuso =
     job.propuesta_origen_at !== null &&
@@ -194,6 +194,11 @@ export function JobDetailPage() {
         <InfoCard label="Creado">
           <p className="text-sm">{fmtFecha(job.created_at)}</p>
         </InfoCard>
+        {job.propuesta_origen_at && (
+          <InfoCard label="Propuesta SUNAT">
+            <p className="text-sm">generada el {fmtFecha(job.propuesta_origen_at)}</p>
+          </InfoCard>
+        )}
       </div>
 
       {tieneResultado && (
@@ -204,7 +209,17 @@ export function JobDetailPage() {
             <Alert variant="destructive">
               <AlertTriangle />
               <AlertDescription>
-                Se encontraron <strong>alertas rojas</strong>. Revisa los escenarios con diferencias
+                Se encontraron <strong>alertas rojas</strong>. Revisa{" "}
+                {(() => {
+                  const escenarios = [
+                    (job.escenario_a_count ?? 0) > 0 && "A",
+                    (job.escenario_b_count ?? 0) > 0 && "B",
+                    (job.escenario_c_count ?? 0) > 0 && "C",
+                  ].filter(Boolean) as string[]
+                  if (escenarios.length === 0) return "los escenarios con diferencias"
+                  if (escenarios.length === 1) return `el escenario ${escenarios[0]}`
+                  return `los escenarios ${escenarios.slice(0, -1).join(", ")} y ${escenarios.at(-1)}`
+                })()}{" "}
                 en el reporte Excel.
               </AlertDescription>
             </Alert>
