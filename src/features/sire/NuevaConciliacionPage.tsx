@@ -318,13 +318,15 @@ export function NuevaConciliacionPage() {
                     <>
                       <Upload className="size-8 text-muted-foreground" />
                       <p className="text-sm font-medium">Haz clic para seleccionar el archivo</p>
-                      <p className="text-xs text-muted-foreground">TXT o CSV del sistema contable</p>
+                      <p className="text-xs text-muted-foreground">
+                        TXT, CSV o Excel del sistema contable
+                      </p>
                     </>
                   )}
                   <input
                     ref={fileRef}
                     type="file"
-                    accept=".txt,.csv"
+                    accept=".txt,.csv,.xlsx,.xlsm"
                     className="hidden"
                     onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                   />

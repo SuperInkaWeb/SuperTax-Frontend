@@ -213,7 +213,7 @@ export function FormatoPage() {
             {guardado ? "Cambiar el formato" : "Configurar el formato"}
           </CardTitle>
           <CardDescription>
-            Sube un archivo de muestra de {libro} (TXT o CSV) para definir el mapeo.
+            Sube un archivo de muestra de {libro} (TXT, CSV o Excel) para definir el mapeo.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -230,7 +230,7 @@ export function FormatoPage() {
             <input
               ref={fileRef}
               type="file"
-              accept=".txt,.csv"
+              accept=".txt,.csv,.xlsx,.xlsm"
               className="hidden"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
