@@ -55,6 +55,7 @@ export function NuevaConciliacionPage() {
   const [analisis, setAnalisis] = useState<AnalisisArchivo | null>(null)
   const [mapeoConfig, setMapeoConfig] = useState<MapeoConfig | null>(null)
   const [validacion, setValidacion] = useState<ValidacionMapeo | null>(null)
+  const [skipRowsManual, setSkipRowsManual] = useState<number | null>(null)
   const [analizando, setAnalizando] = useState(false)
   const [validando, setValidando] = useState(false)
   const [cobertura, setCobertura] = useState<string[] | undefined>(undefined)
@@ -71,7 +72,7 @@ export function NuevaConciliacionPage() {
     }
     let cancelado = false
     setAnalizando(true)
-    analizarArchivo(tipoLibro, file)
+    analizarArchivo(tipoLibro, file, skipRowsManual ?? undefined)
       .then((a) => {
         if (cancelado) return
         setAnalisis(a)
@@ -92,7 +93,7 @@ export function NuevaConciliacionPage() {
     return () => {
       cancelado = true
     }
-  }, [file, tipoLibro])
+  }, [file, tipoLibro, skipRowsManual])
 
   async function handleRevalidar() {
     if (!file || !mapeoConfig) return
@@ -220,6 +221,7 @@ export function NuevaConciliacionPage() {
                   onChange={(e) => {
                     const v = e.target.value as TipoLibro
                     setTipoLibro(v)
+                    setSkipRowsManual(null)
                     if (v !== "compras") setSinSire(false)
                   }}
                 >
@@ -328,7 +330,10 @@ export function NuevaConciliacionPage() {
                     type="file"
                     accept=".txt,.csv,.xlsx,.xlsm"
                     className="hidden"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      setFile(e.target.files?.[0] ?? null)
+                      setSkipRowsManual(null)
+                    }}
                   />
                 </div>
               </div>
@@ -348,6 +353,7 @@ export function NuevaConciliacionPage() {
                   validando={validando}
                   onChange={setMapeoConfig}
                   onRevalidar={handleRevalidar}
+                  onReanalizar={setSkipRowsManual}
                 />
               )}
 

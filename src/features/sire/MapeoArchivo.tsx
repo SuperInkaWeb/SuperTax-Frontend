@@ -35,9 +35,12 @@ interface Props {
   validando: boolean
   onChange: (cfg: MapeoConfig) => void
   onRevalidar: () => void
+  onReanalizar: (skipRows: number) => void
 }
 
-export function MapeoArchivo({ analisis, config, validacion, validando, onChange, onRevalidar }: Props) {
+export function MapeoArchivo({
+  analisis, config, validacion, validando, onChange, onRevalidar, onReanalizar,
+}: Props) {
   const base = NIVEL_INFO[analisis.nivel] ?? NIVEL_INFO.desconocido
   const info =
     analisis.nivel === "ple" && analisis.formato
@@ -149,6 +152,30 @@ export function MapeoArchivo({ analisis, config, validacion, validando, onChange
 
       {expandido && !analisis.solo_lectura && (
         <div className="space-y-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <label htmlFor="fila-inicial">Los datos empiezan en la fila</label>
+            <input
+              id="fila-inicial"
+              key={config.skip_rows}
+              type="number"
+              min={1}
+              defaultValue={(config.skip_rows ?? 0) + 1}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur()
+              }}
+              onBlur={(e) => {
+                const n = Math.max(0, Number(e.target.value) - 1)
+                if (n !== (config.skip_rows ?? 0)) onReanalizar(n)
+              }}
+              className="h-7 w-20 rounded-md border border-border bg-card px-2 text-foreground"
+            />
+            <span className="opacity-70">
+              {config.has_header
+                ? "(esa fila es el encabezado)"
+                : "(corrige si el detector se equivocó)"}
+            </span>
+          </div>
+
           <label className="flex cursor-pointer items-center gap-2 text-xs">
             <input
               type="checkbox"

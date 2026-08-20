@@ -151,10 +151,12 @@ export interface AnalisisArchivo {
 export async function analizarArchivo(
   tipoLibro: TipoLibro,
   archivo: File,
+  skipRows?: number,
 ): Promise<AnalisisArchivo> {
   const form = new FormData()
   form.append("tipo_libro", tipoLibro)
   form.append("archivo", archivo)
+  if (skipRows !== undefined) form.append("skip_rows", String(skipRows))
   const { data } = await api.post<AnalisisArchivo>(
     "/api/sire/file-mapping/analizar",
     form,

@@ -52,6 +52,7 @@ export function FormatoPage() {
   const [analisis, setAnalisis] = useState<AnalisisArchivo | null>(null)
   const [config, setConfig] = useState<MapeoConfig | null>(null)
   const [validacion, setValidacion] = useState<ValidacionMapeo | null>(null)
+  const [skipRowsManual, setSkipRowsManual] = useState<number | null>(null)
   const [analizando, setAnalizando] = useState(false)
   const [validando, setValidando] = useState(false)
 
@@ -67,6 +68,7 @@ export function FormatoPage() {
     setAnalisis(null)
     setConfig(null)
     setValidacion(null)
+    setSkipRowsManual(null)
   }, [libro])
 
   // Análisis automático al subir un archivo.
@@ -79,7 +81,7 @@ export function FormatoPage() {
     }
     let cancelado = false
     setAnalizando(true)
-    analizarArchivo(libro, file)
+    analizarArchivo(libro, file, skipRowsManual ?? undefined)
       .then((a) => {
         if (cancelado) return
         setAnalisis(a)
@@ -95,7 +97,7 @@ export function FormatoPage() {
     return () => {
       cancelado = true
     }
-  }, [file, libro])
+  }, [file, libro, skipRowsManual])
 
   async function handleRevalidar() {
     if (!file || !config) return
@@ -232,7 +234,10 @@ export function FormatoPage() {
               type="file"
               accept=".txt,.csv,.xlsx,.xlsm"
               className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null)
+                setSkipRowsManual(null)
+              }}
             />
           </div>
 
@@ -262,6 +267,7 @@ export function FormatoPage() {
                 validando={validando}
                 onChange={setConfig}
                 onRevalidar={handleRevalidar}
+                onReanalizar={setSkipRowsManual}
               />
               <Button onClick={() => guardar.mutate()} disabled={!mapeoListo || guardar.isPending}>
                 {guardar.isPending ? (
