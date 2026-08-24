@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import {
   abrirLogs,
   cancelar,
+  descargarReporte,
   forzarFaltantes,
   getCredentials,
   getJobResult,
@@ -369,6 +370,14 @@ export function DescargarPage() {
           resultados={resultados}
           onReintentar={onReintentar}
           reintentando={reintentando}
+          onExportar={async () => {
+            if (!jobId) return
+            try {
+              await descargarReporte(jobId)
+            } catch (err) {
+              toast.error(apiError(err, "No se pudo exportar el reporte"))
+            }
+          }}
         />
       )}
     </div>

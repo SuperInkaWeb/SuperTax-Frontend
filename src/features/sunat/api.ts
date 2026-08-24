@@ -47,6 +47,24 @@ export interface ResultadoComprobante {
   xml: boolean
   pide_pdf: boolean
   pide_xml: boolean
+  emisor?: string
+  ruc?: string
+  tipo?: string
+  monto?: string
+  moneda?: string
+  fecha?: string
+  descripcion?: string
+}
+
+/** Descarga el reporte Excel del job (estado por comprobante + descripción). */
+export async function descargarReporte(jobId: string): Promise<void> {
+  const resp = await api.get(`/api/sunat/jobs/${jobId}/report`, { responseType: "blob" })
+  const url = URL.createObjectURL(resp.data as Blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `reporte-sunat-${jobId}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 export async function listJobs(): Promise<SunatJobItem[]> {

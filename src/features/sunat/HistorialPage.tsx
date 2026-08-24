@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
+import { toast } from "sonner"
 
-import { getJobResult, listJobs } from "@/features/sunat/api"
+import { descargarReporte, getJobResult, listJobs } from "@/features/sunat/api"
+import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
@@ -41,15 +43,18 @@ function ResultadosDelJob({ jobId }: { jobId: string }) {
         <thead className="border-b text-left text-muted-foreground">
           <tr>
             <th className="p-2">Comprobante</th>
+            <th className="p-2">Emisor</th>
             <th className="p-2">Estado</th>
             <th className="p-2">PDF</th>
             <th className="p-2">XML</th>
+            <th className="p-2">Descripción</th>
           </tr>
         </thead>
         <tbody>
           {data.map((r) => (
-            <tr key={r.id} className="border-b last:border-0">
+            <tr key={r.id} className="border-b align-top last:border-0">
               <td className="p-2 font-medium">{r.id}</td>
+              <td className="p-2">{r.emisor ?? "—"}</td>
               <td className="p-2">
                 <Badge tone={r.estado === "OK" ? "success" : r.estado === "Parcial" ? "info" : "danger"}>
                   {r.estado}
@@ -57,6 +62,7 @@ function ResultadosDelJob({ jobId }: { jobId: string }) {
               </td>
               <td className="p-2">{r.pide_pdf === false ? "—" : r.pdf ? "✓" : "✗"}</td>
               <td className="p-2">{r.pide_xml === false ? "—" : r.xml ? "✓" : "✗"}</td>
+              <td className="max-w-[24rem] p-2 text-xs text-muted-foreground">{r.descripcion ?? "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -118,13 +124,28 @@ export function HistorialPage() {
                   </td>
                   <td className="p-3 text-right">
                     {job.has_result && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setAbierto(abierto === job.job_id ? null : job.job_id)}
-                      >
-                        {abierto === job.job_id ? "Ocultar" : "Ver resultados"}
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={async () => {
+                            try {
+                              await descargarReporte(job.job_id)
+                            } catch (e) {
+                              toast.error(apiError(e, "No se pudo exportar el reporte"))
+                            }
+                          }}
+                        >
+                          Excel
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setAbierto(abierto === job.job_id ? null : job.job_id)}
+                        >
+                          {abierto === job.job_id ? "Ocultar" : "Ver resultados"}
+                        </Button>
+                      </div>
                     )}
                   </td>
                 </tr>
