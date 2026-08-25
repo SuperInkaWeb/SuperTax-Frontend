@@ -15,6 +15,7 @@ import {
 import { ComprobantesTable } from "@/features/sunat/ComprobantesTable"
 import { EntregaFields } from "@/features/sunat/EntregaFields"
 import { LogViewer } from "@/features/sunat/LogViewer"
+import { MapeoColumnas } from "@/features/sunat/MapeoColumnas"
 import { ResultadosTable } from "@/features/sunat/ResultadosTable"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
@@ -23,7 +24,13 @@ import { Card, CardContent } from "@/shared/ui/card"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 
-import type { Comprobante, EntregaOptions, ResultadoComprobante } from "@/features/sunat/api"
+import type {
+  Comprobante,
+  EntregaOptions,
+  MapeoEntrada,
+  PreviewResult,
+  ResultadoComprobante,
+} from "@/features/sunat/api"
 
 const ENTREGA_INICIAL: EntregaOptions = {
   usar_correo: false,
@@ -54,6 +61,14 @@ export function DescargarPage() {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [previewId, setPreviewId] = useState("")
   const [previsualizando, setPrevisualizando] = useState(false)
+  const [mapeo, setMapeo] = useState<MapeoEntrada | null>(null)
+  const [analisis, setAnalisis] = useState<{
+    headers: string[]
+    muestra: string[][]
+    confianza: number
+    necesitaRevision: boolean
+  } | null>(null)
+  const [reanalizando, setReanalizando] = useState(false)
 
   const [jobId, setJobId] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
@@ -87,6 +102,26 @@ export function DescargarPage() {
     setComprobantes([])
     setSeleccionados(new Set())
     setPreviewId("")
+    setMapeo(null)
+    setAnalisis(null)
+  }
+
+  function aplicarPreview(res: PreviewResult) {
+    setComprobantes(res.comprobantes)
+    setSeleccionados(new Set(res.comprobantes.map((c) => c.id)))
+    setPreviewId(res.preview_id)
+    setMapeo(res.mapeo)
+    setAnalisis({
+      headers: res.headers,
+      muestra: res.muestra,
+      confianza: res.confianza,
+      necesitaRevision: res.necesita_revision,
+    })
+    if (res.comprobantes.length > 0) {
+      toast.success(`${res.comprobantes.length} comprobantes detectados`)
+    } else {
+      toast.message("Revisa y asigna las columnas del archivo")
+    }
   }
 
   function toggle(id: string) {
@@ -102,7 +137,9 @@ export function DescargarPage() {
   const hayEnvio = entrega.usar_correo || entrega.usar_drive
   const hayTipo = descargarPdf || descargarXml
   const haySeleccion = comprobantes.length === 0 || seleccionados.size > 0
-  const puedeIniciar = !corriendo && tieneExcel && hayEnvio && hayTipo && haySeleccion
+  const revisionPendiente = !!analisis?.necesitaRevision && comprobantes.length === 0
+  const puedeIniciar =
+    !corriendo && tieneExcel && hayEnvio && hayTipo && haySeleccion && !revisionPendiente
 
   async function onPreview() {
     if (!tieneExcel) {
@@ -115,14 +152,28 @@ export function DescargarPage() {
         fuente === "archivo" ? excel : null,
         fuente === "drive" ? excelLink : "",
       )
-      setComprobantes(res.comprobantes)
-      setSeleccionados(new Set(res.comprobantes.map((c) => c.id)))
-      setPreviewId(res.preview_id)
-      toast.success(`${res.comprobantes.length} comprobantes detectados`)
+      aplicarPreview(res)
     } catch (err) {
       toast.error(apiError(err, "No se pudo previsualizar"))
     } finally {
       setPrevisualizando(false)
+    }
+  }
+
+  async function onReanalizar() {
+    if (!mapeo) return
+    setReanalizando(true)
+    try {
+      const res = await previewExcel(
+        fuente === "archivo" ? excel : null,
+        fuente === "drive" ? excelLink : "",
+        mapeo,
+      )
+      aplicarPreview(res)
+    } catch (err) {
+      toast.error(apiError(err, "No se pudo analizar el mapeo"))
+    } finally {
+      setReanalizando(false)
     }
   }
 
@@ -269,7 +320,7 @@ export function DescargarPage() {
               {fuente === "archivo" ? (
                 <Input
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx,.xls,.csv"
                   onChange={(e) => {
                     setExcel(e.target.files?.[0] ?? null)
                     resetPreview()
@@ -345,6 +396,19 @@ export function DescargarPage() {
           </CardContent>
         </Card>
       </div>
+
+      {analisis && mapeo && (
+        <MapeoColumnas
+          mapeo={mapeo}
+          headers={analisis.headers}
+          muestra={analisis.muestra}
+          confianza={analisis.confianza}
+          necesitaRevision={analisis.necesitaRevision}
+          revalidando={reanalizando}
+          onChange={setMapeo}
+          onRevalidar={onReanalizar}
+        />
+      )}
 
       {comprobantes.length > 0 && (
         <div className="space-y-2">

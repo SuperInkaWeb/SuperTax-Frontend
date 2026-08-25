@@ -107,18 +107,43 @@ export interface Comprobante {
   numero: number
 }
 
+/** Mapeo de columnas de la entrada (índices; null = sin asignar). */
+export interface MapeoEntrada {
+  col_ruc: number | null
+  col_tipo: number | null
+  col_serie: number | null
+  col_numero: number | null
+}
+
 export interface PreviewResult {
   comprobantes: Comprobante[]
   preview_id: string
+  mapeo: MapeoEntrada
+  headers: string[]
+  muestra: string[][]
+  confianza: number
+  necesita_revision: boolean
 }
 
 export async function previewExcel(
   excel: File | null,
   excelLink: string,
+  mapeo?: MapeoEntrada,
 ): Promise<PreviewResult> {
   const form = new FormData()
   if (excel) form.append("excel", excel)
   form.append("excel_link", excelLink)
+  if (mapeo) {
+    form.append(
+      "mapeo",
+      JSON.stringify({
+        ruc: mapeo.col_ruc,
+        tipo: mapeo.col_tipo,
+        serie: mapeo.col_serie,
+        numero: mapeo.col_numero,
+      }),
+    )
+  }
   const { data } = await api.post<PreviewResult>(
     "/api/sunat/preview-excel",
     form,
