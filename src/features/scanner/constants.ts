@@ -53,13 +53,23 @@ export const GRUPOS: Grupo[] = [
     ],
   },
   {
-    id: "asistencia",
-    label: "Asistencia",
+    id: "laboral",
+    label: "Laboral",
     icon: ClipboardList,
-    tipos: [{ id: "asistencia", label: "Planilla" }],
+    tipos: [
+      { id: "asistencia", label: "Planilla de Asistencia" },
+      { id: "boleta_pago", label: "Boleta de Pago" },
+    ],
   },
 ]
 
 /** Mapa tipo → grupo (derivado de GRUPOS). */
 export const TIPO_A_GRUPO: Record<string, string> = {}
 GRUPOS.forEach((g) => g.tipos.forEach((t) => (TIPO_A_GRUPO[t.id] = g.id)))
+
+/**
+ * Tipos "multi-registro": cada documento contiene una lista de `registros`
+ * (una planilla = muchos trabajadores/días). Se muestran/exportan expandidos
+ * (una fila por registro), no como una sola fila con `total_registros`.
+ */
+export const TIPOS_MULTIREGISTRO = new Set(["asistencia", "boleta_pago"])

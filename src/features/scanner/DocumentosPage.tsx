@@ -3,16 +3,18 @@ import { useMemo, useRef, useState } from "react"
 
 import { getTipos, listDocumentos } from "@/features/scanner/api"
 import { BotonExportar } from "@/features/scanner/BotonExportar"
-import { GRUPOS, TIPO_A_GRUPO } from "@/features/scanner/constants"
-import { columnasDe } from "@/features/scanner/filas"
+import { GRUPOS, TIPO_A_GRUPO, TIPOS_MULTIREGISTRO } from "@/features/scanner/constants"
+import { columnasDe, columnasDeRegistros, filasDeRegistros } from "@/features/scanner/filas"
 import { PanelDetalle } from "@/features/scanner/PanelDetalle"
 import { SelectorCampos } from "@/features/scanner/SelectorCampos"
 import { TablaDocumentos } from "@/features/scanner/TablaDocumentos"
+import { TablaRegistros } from "@/features/scanner/TablaRegistros"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Card, CardContent } from "@/shared/ui/card"
 import { Spinner } from "@/shared/ui/spinner"
 
 import type { Documento } from "@/features/scanner/api"
+import type { FilaRegistro } from "@/features/scanner/filas"
 
 function leerCols(key: string): string[] | null {
   try {
@@ -54,6 +56,17 @@ export function DocumentosPage() {
   const docsSubtipo =
     subtipo === "todos" ? docsGrupo : docsGrupo.filter((d) => d.tipo_documento === subtipo)
 
+  // Multi-registro (asistencia, boleta de pago): se expanden los `registros` en
+  // filas individuales. Escalares (comprobantes/servicios): una fila por documento.
+  const esMultiRegistro = grupo.tipos.some((t) => TIPOS_MULTIREGISTRO.has(t.id))
+  const filasExport = useMemo<FilaRegistro[]>(
+    () =>
+      esMultiRegistro
+        ? filasDeRegistros(docsSubtipo)
+        : docsSubtipo.map((d) => ({ archivo: d.nombre_archivo, docId: d.id, ...d.campos })),
+    [esMultiRegistro, docsSubtipo],
+  )
+
   const colsKey = `scanner_cols_${grupo.id}_${subtipo}`
   const [camposVisibles, setCamposVisibles] = useState<string[] | null>(() => leerCols(colsKey))
 
@@ -66,7 +79,10 @@ export function DocumentosPage() {
     }
   }
 
-  const columnasDisponibles = useMemo(() => columnasDe(docsSubtipo), [docsSubtipo])
+  const columnasDisponibles = useMemo(
+    () => (esMultiRegistro ? columnasDeRegistros(filasExport) : columnasDe(docsSubtipo)),
+    [esMultiRegistro, filasExport, docsSubtipo],
+  )
   const columnas =
     camposVisibles === null
       ? columnasDisponibles
@@ -212,10 +228,13 @@ export function DocumentosPage() {
                   <grupo.icon className="size-4 text-muted-foreground" />
                   <h2 className="font-bold">{grupo.label}</h2>
                   <span className="text-sm text-muted-foreground">
-                    — {docsSubtipo.length} registro{docsSubtipo.length !== 1 ? "s" : ""}
+                    — {esMultiRegistro ? filasExport.length : docsSubtipo.length}{" "}
+                    {esMultiRegistro ? "registro" : "documento"}
+                    {(esMultiRegistro ? filasExport.length : docsSubtipo.length) !== 1 ? "s" : ""}
+                    {esMultiRegistro && ` en ${docsSubtipo.length} archivo${docsSubtipo.length !== 1 ? "s" : ""}`}
                   </span>
                 </div>
-                <BotonExportar docs={docsSubtipo} columnas={columnas} camposLabels={camposLabels} />
+                <BotonExportar filas={filasExport} columnas={columnas} camposLabels={camposLabels} />
               </div>
 
               {/* Pills de subtipo */}
@@ -258,6 +277,13 @@ export function DocumentosPage() {
                   <p className="font-medium">No hay {grupo.label.toLowerCase()} todavía</p>
                   <p className="mt-1 text-sm">Sube un documento en la pestaña “Subir documento”.</p>
                 </div>
+              ) : esMultiRegistro ? (
+                <TablaRegistros
+                  key={`${grupo.id}-${subtipo}`}
+                  filas={filasExport}
+                  columnas={columnas}
+                  camposLabels={camposLabels}
+                />
               ) : (
                 <TablaDocumentos
                   key={`${grupo.id}-${subtipo}`}

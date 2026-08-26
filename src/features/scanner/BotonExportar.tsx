@@ -3,10 +3,9 @@ import { Download } from "lucide-react"
 import { valorCampo } from "@/features/scanner/filas"
 import { Button } from "@/shared/ui/button"
 
-import type { Documento } from "@/features/scanner/api"
-
 interface Props {
-  docs: Documento[]
+  /** Filas ya aplanadas: cada una con `archivo` + los campos/columnas. */
+  filas: Record<string, unknown>[]
   columnas: string[]
   camposLabels: Record<string, string>
 }
@@ -15,14 +14,19 @@ function escapar(v: string): string {
   return v.includes(",") || v.includes('"') || v.includes("\n") ? `"${v.replace(/"/g, '""')}"` : v
 }
 
-export function BotonExportar({ docs, columnas, camposLabels }: Props) {
+export function BotonExportar({ filas, columnas, camposLabels }: Props) {
+  const vacio = filas.length === 0 || columnas.length === 0
+
   function exportar() {
-    if (!docs.length || !columnas.length) return
-    const cabecera = ["archivo", ...columnas.map((c) => camposLabels[c] ?? c)].join(",")
-    const filas = docs.map((d) =>
-      [escapar(d.nombre_archivo), ...columnas.map((c) => escapar(valorCampo(d.campos[c])))].join(","),
+    if (vacio) return
+    const cabecera = ["Archivo", ...columnas.map((c) => camposLabels[c] ?? c)].join(",")
+    const cuerpo = filas.map((f) =>
+      [
+        escapar(valorCampo(f.archivo)),
+        ...columnas.map((c) => escapar(valorCampo(f[c]))),
+      ].join(","),
     )
-    const csv = [cabecera, ...filas].join("\r\n")
+    const csv = [cabecera, ...cuerpo].join("\r\n")
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -33,7 +37,7 @@ export function BotonExportar({ docs, columnas, camposLabels }: Props) {
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={exportar} disabled={!docs.length || !columnas.length}>
+    <Button size="sm" variant="outline" onClick={exportar} disabled={vacio}>
       <Download className="size-4" />
       Exportar CSV
     </Button>
