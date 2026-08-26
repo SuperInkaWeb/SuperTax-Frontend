@@ -51,21 +51,23 @@ export async function updateDocumento(
   return data
 }
 
-/** Exporta a Excel (.xlsx) las filas que se están mostrando (el backend arma el archivo). */
+/** Exporta a Excel (.xlsx) las filas que se están mostrando (el backend arma el
+ *  archivo). `porDocumento`: una hoja por archivo de origen en vez de todo junto. */
 export async function exportarDocumentosExcel(
   filas: Record<string, unknown>[],
   columnas: string[],
   labels: Record<string, string>,
+  porDocumento = false,
 ): Promise<void> {
   const resp = await api.post(
     "/api/scanner/documentos/export",
-    { filas, columnas, labels },
+    { filas, columnas, labels, por_documento: porDocumento },
     { responseType: "blob" },
   )
   const url = URL.createObjectURL(resp.data as Blob)
   const a = document.createElement("a")
   a.href = url
-  a.download = `documentos_${Date.now()}.xlsx`
+  a.download = `documentos${porDocumento ? "-por-archivo" : ""}_${Date.now()}.xlsx`
   a.click()
   URL.revokeObjectURL(url)
 }

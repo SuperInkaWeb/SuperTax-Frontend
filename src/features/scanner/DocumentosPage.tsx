@@ -234,7 +234,12 @@ export function DocumentosPage() {
                     {esMultiRegistro && ` en ${docsSubtipo.length} archivo${docsSubtipo.length !== 1 ? "s" : ""}`}
                   </span>
                 </div>
-                <BotonExportar filas={filasExport} columnas={columnas} camposLabels={camposLabels} />
+                <BotonExportar
+                  filas={filasExport}
+                  columnas={columnas}
+                  camposLabels={camposLabels}
+                  porDocumento={esMultiRegistro}
+                />
               </div>
 
               {/* Pills de subtipo */}
