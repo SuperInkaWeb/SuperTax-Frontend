@@ -18,11 +18,12 @@ interface Resultado {
 export function SubirPage() {
   const queryClient = useQueryClient()
   const [resultados, setResultados] = useState<Resultado[]>([])
+  const [tipoForzado, setTipoForzado] = useState("")
 
   const { data: tipos } = useQuery({ queryKey: ["scanner", "tipos"], queryFn: getTipos })
 
   async function manejarArchivo(file: File, onProgress: (pct: number) => void) {
-    const creado = await uploadAuto(file, onProgress)
+    const creado = await uploadAuto(file, onProgress, tipoForzado)
     const documento = await esperarDocumento(creado.job_id)
     if (documento.campos?.procesado_con_ia === true) {
       toast("Procesado con IA — verifica los datos", { icon: "🤖" })
@@ -35,6 +36,30 @@ export function SubirPage() {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="tipo-doc" className="text-sm font-medium">
+          Tipo de documento
+        </label>
+        <select
+          id="tipo-doc"
+          value={tipoForzado}
+          onChange={(e) => setTipoForzado(e.target.value)}
+          className="h-9 rounded-md border border-border bg-card px-2 text-sm text-foreground"
+        >
+          <option value="">Automático (detectar)</option>
+          {Object.entries(tipos ?? {}).map(([key, { etiqueta }]) => (
+            <option key={key} value={key}>
+              {etiqueta}
+            </option>
+          ))}
+        </select>
+        {tipoForzado && (
+          <span className="text-xs text-muted-foreground">
+            Se aplicará a los archivos que subas ahora (salta la detección automática).
+          </span>
+        )}
+      </div>
+
       <ZonaCarga
         onArchivo={(file, onProgress) =>
           manejarArchivo(file, onProgress).catch((e) => {

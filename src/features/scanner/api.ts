@@ -54,9 +54,11 @@ export async function updateDocumento(
 export async function uploadAuto(
   file: File,
   onProgress?: (pct: number) => void,
+  tipo?: string,
 ): Promise<ScannerJobCreated> {
   const form = new FormData()
   form.append("file", file)
+  if (tipo) form.append("tipo", tipo)
   const { data } = await api.post<ScannerJobCreated>("/api/scanner/upload/auto", form, {
     headers: { "Content-Type": undefined },
     onUploadProgress: (e) => {
