@@ -51,6 +51,25 @@ export async function updateDocumento(
   return data
 }
 
+/** Exporta a Excel (.xlsx) las filas que se están mostrando (el backend arma el archivo). */
+export async function exportarDocumentosExcel(
+  filas: Record<string, unknown>[],
+  columnas: string[],
+  labels: Record<string, string>,
+): Promise<void> {
+  const resp = await api.post(
+    "/api/scanner/documentos/export",
+    { filas, columnas, labels },
+    { responseType: "blob" },
+  )
+  const url = URL.createObjectURL(resp.data as Blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `documentos_${Date.now()}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function uploadAuto(
   file: File,
   onProgress?: (pct: number) => void,

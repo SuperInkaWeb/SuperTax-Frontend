@@ -1,6 +1,9 @@
 import { Download } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
 
-import { valorCampo } from "@/features/scanner/filas"
+import { exportarDocumentosExcel } from "@/features/scanner/api"
+import { apiError } from "@/shared/lib/api/error"
 import { Button } from "@/shared/ui/button"
 
 interface Props {
@@ -10,36 +13,26 @@ interface Props {
   camposLabels: Record<string, string>
 }
 
-function escapar(v: string): string {
-  return v.includes(",") || v.includes('"') || v.includes("\n") ? `"${v.replace(/"/g, '""')}"` : v
-}
-
 export function BotonExportar({ filas, columnas, camposLabels }: Props) {
+  const [cargando, setCargando] = useState(false)
   const vacio = filas.length === 0 || columnas.length === 0
 
-  function exportar() {
+  async function exportar() {
     if (vacio) return
-    const cabecera = ["Archivo", ...columnas.map((c) => camposLabels[c] ?? c)].join(",")
-    const cuerpo = filas.map((f) =>
-      [
-        escapar(valorCampo(f.archivo)),
-        ...columnas.map((c) => escapar(valorCampo(f[c]))),
-      ].join(","),
-    )
-    const csv = [cabecera, ...cuerpo].join("\r\n")
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `documentos_${Date.now()}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    setCargando(true)
+    try {
+      await exportarDocumentosExcel(filas, columnas, camposLabels)
+    } catch (e) {
+      toast.error(apiError(e, "No se pudo exportar el Excel"))
+    } finally {
+      setCargando(false)
+    }
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={exportar} disabled={vacio}>
+    <Button size="sm" variant="outline" onClick={exportar} disabled={vacio || cargando}>
       <Download className="size-4" />
-      Exportar CSV
+      {cargando ? "Generando…" : "Exportar Excel"}
     </Button>
   )
 }
