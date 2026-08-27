@@ -11,6 +11,9 @@
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string | undefined
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
 const SCOPE = "https://www.googleapis.com/auth/drive.file"
+// Bajo `drive.file`, el Picker solo concede acceso al archivo elegido si conoce el
+// número de proyecto (App ID), que es el prefijo numérico del client_id.
+const APP_ID = CLIENT_ID?.split("-")[0] ?? ""
 const MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 interface TokenClient {
@@ -27,6 +30,7 @@ interface PickerData {
 interface PickerBuilder {
   setOAuthToken: (t: string) => PickerBuilder
   setDeveloperKey: (k: string) => PickerBuilder
+  setAppId: (id: string) => PickerBuilder
   addView: (v: unknown) => PickerBuilder
   setCallback: (cb: (data: PickerData) => void) => PickerBuilder
   build: () => { setVisible: (v: boolean) => void }
@@ -116,6 +120,7 @@ function abrirPicker(token: string): Promise<PickerDoc | null> {
     const picker = new window.google.picker.PickerBuilder()
       .setOAuthToken(token)
       .setDeveloperKey(API_KEY as string)
+      .setAppId(APP_ID)
       .addView(vista)
       .setCallback((data) => {
         if (data.action === window.google.picker.Action.PICKED) resolve(data.docs[0] ?? null)
