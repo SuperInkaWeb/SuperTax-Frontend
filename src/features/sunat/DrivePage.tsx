@@ -59,12 +59,19 @@ export function DrivePage() {
 
   return (
     <Card className="max-w-xl">
-      <CardContent className="flex items-center justify-between pt-5">
-        <p className="text-sm">
-          {data?.connected
-            ? "Google Drive está conectado."
-            : "Google Drive no está conectado."}
+      <CardContent className="space-y-4 pt-5">
+        <p className="text-sm text-muted-foreground">
+          Conecta tu Drive para que las descargas se guarden en una carpeta propia de la app.
+          Para elegir el Excel de entrada desde Drive no necesitas esto: usa
+          {" "}
+          <span className="font-medium">Elegir de Google Drive</span> en el formulario.
         </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm">
+            {data?.connected
+              ? "Google Drive está conectado."
+              : "Google Drive no está conectado."}
+          </p>
         {data?.connected ? (
           <Button
             variant="outline"
@@ -86,6 +93,7 @@ export function DrivePage() {
             Conectar Drive
           </Button>
         )}
+        </div>
       </CardContent>
     </Card>
   )
