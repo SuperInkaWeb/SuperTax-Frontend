@@ -13,6 +13,7 @@ import {
   previewExcel,
 } from "@/features/sunat/api"
 import { ComprobantesTable } from "@/features/sunat/ComprobantesTable"
+import { drivePickerDisponible, elegirExcelDeDrive } from "@/features/sunat/drivePicker"
 import { EntregaFields } from "@/features/sunat/EntregaFields"
 import { LogViewer } from "@/features/sunat/LogViewer"
 import { MapeoColumnas } from "@/features/sunat/MapeoColumnas"
@@ -39,7 +40,6 @@ const ENTREGA_INICIAL: EntregaOptions = {
   destino: "",
   modo_correo: "individual",
   usar_drive: false,
-  drive_folder: "",
 }
 
 type Fuente = "archivo" | "drive"
@@ -52,7 +52,6 @@ export function DescargarPage() {
   const [clave, setClave] = useState("")
   const [fuente, setFuente] = useState<Fuente>("archivo")
   const [excel, setExcel] = useState<File | null>(null)
-  const [excelLink, setExcelLink] = useState("")
   const [descargarPdf, setDescargarPdf] = useState(true)
   const [descargarXml, setDescargarXml] = useState(true)
   const [entrega, setEntrega] = useState<EntregaOptions>(ENTREGA_INICIAL)
@@ -133,7 +132,7 @@ export function DescargarPage() {
     })
   }
 
-  const tieneExcel = fuente === "archivo" ? !!excel : !!excelLink.trim()
+  const tieneExcel = !!excel
   const hayEnvio = entrega.usar_correo || entrega.usar_drive
   const hayTipo = descargarPdf || descargarXml
   const haySeleccion = comprobantes.length === 0 || seleccionados.size > 0
@@ -141,18 +140,26 @@ export function DescargarPage() {
   const puedeIniciar =
     !corriendo && tieneExcel && hayEnvio && hayTipo && haySeleccion && !revisionPendiente
 
+  async function onElegirDrive() {
+    try {
+      const file = await elegirExcelDeDrive()
+      if (file) {
+        setExcel(file)
+        resetPreview()
+      }
+    } catch (err) {
+      toast.error(apiError(err, "No se pudo abrir Google Drive"))
+    }
+  }
+
   async function onPreview() {
     if (!tieneExcel) {
-      toast.error("Sube un Excel o pega un enlace de Drive")
+      toast.error("Selecciona o sube un Excel")
       return
     }
     setPrevisualizando(true)
     try {
-      const res = await previewExcel(
-        fuente === "archivo" ? excel : null,
-        fuente === "drive" ? excelLink : "",
-      )
-      aplicarPreview(res)
+      aplicarPreview(await previewExcel(excel))
     } catch (err) {
       toast.error(apiError(err, "No se pudo previsualizar"))
     } finally {
@@ -164,12 +171,7 @@ export function DescargarPage() {
     if (!mapeo) return
     setReanalizando(true)
     try {
-      const res = await previewExcel(
-        fuente === "archivo" ? excel : null,
-        fuente === "drive" ? excelLink : "",
-        mapeo,
-      )
-      aplicarPreview(res)
+      aplicarPreview(await previewExcel(excel, mapeo))
     } catch (err) {
       toast.error(apiError(err, "No se pudo analizar el mapeo"))
     } finally {
@@ -215,8 +217,7 @@ export function DescargarPage() {
         descargar_pdf: descargarPdf,
         descargar_xml: descargarXml,
         preview_id: previewId,
-        excel: fuente === "archivo" && !previewId ? excel : null,
-        excel_link: fuente === "drive" ? excelLink : "",
+        excel: !previewId ? excel : null,
         comprobantes_ids: ids,
         ...entrega,
       })
@@ -246,8 +247,7 @@ export function DescargarPage() {
         ruc,
         usuario,
         clave,
-        excel: fuente === "archivo" ? excel : null,
-        excel_link: fuente === "drive" ? excelLink : "",
+        excel,
         resultados_previos: JSON.stringify(resultados),
         ...entrega,
       })
@@ -299,6 +299,7 @@ export function DescargarPage() {
                     checked={fuente === "archivo"}
                     onChange={() => {
                       setFuente("archivo")
+                      setExcel(null)
                       resetPreview()
                     }}
                   />
@@ -311,6 +312,7 @@ export function DescargarPage() {
                     checked={fuente === "drive"}
                     onChange={() => {
                       setFuente("drive")
+                      setExcel(null)
                       resetPreview()
                     }}
                   />
@@ -328,18 +330,19 @@ export function DescargarPage() {
                 />
               ) : (
                 <>
-                  <Input
-                    placeholder="https://drive.google.com/file/d/…"
-                    value={excelLink}
-                    onChange={(e) => {
-                      setExcelLink(e.target.value)
-                      resetPreview()
-                    }}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    El archivo debe estar compartido como “cualquiera con el enlace” o con tu cuenta
-                    de Drive conectada.
-                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onElegirDrive}
+                    disabled={!drivePickerDisponible()}
+                  >
+                    {excel ? `Elegido: ${excel.name}` : "Elegir de Google Drive"}
+                  </Button>
+                  {!drivePickerDisponible() && (
+                    <p className="text-xs text-destructive">
+                      Google Drive no está configurado en esta instalación.
+                    </p>
+                  )}
                 </>
               )}
             </div>

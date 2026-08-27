@@ -127,12 +127,10 @@ export interface PreviewResult {
 
 export async function previewExcel(
   excel: File | null,
-  excelLink: string,
   mapeo?: MapeoEntrada,
 ): Promise<PreviewResult> {
   const form = new FormData()
   if (excel) form.append("excel", excel)
-  form.append("excel_link", excelLink)
   if (mapeo) {
     form.append(
       "mapeo",
@@ -160,7 +158,6 @@ export interface EntregaOptions {
   destino: string
   modo_correo: string
   usar_drive: boolean
-  drive_folder: string
 }
 
 export interface IniciarInput extends EntregaOptions {
@@ -171,7 +168,6 @@ export interface IniciarInput extends EntregaOptions {
   descargar_xml: boolean
   preview_id: string
   excel: File | null
-  excel_link: string
   comprobantes_ids: string[]
 }
 
@@ -182,7 +178,6 @@ function _appendEntrega(form: FormData, o: EntregaOptions): void {
   form.append("destino", o.destino)
   form.append("modo_correo", o.modo_correo)
   form.append("usar_drive", String(o.usar_drive))
-  form.append("drive_folder", o.drive_folder)
 }
 
 export async function iniciar(input: IniciarInput): Promise<string> {
@@ -192,7 +187,6 @@ export async function iniciar(input: IniciarInput): Promise<string> {
   form.append("clave", input.clave)
   form.append("descargar_pdf", String(input.descargar_pdf))
   form.append("descargar_xml", String(input.descargar_xml))
-  form.append("excel_link", input.excel_link)
   form.append("comprobantes_ids", JSON.stringify(input.comprobantes_ids))
   if (input.preview_id) form.append("preview_id", input.preview_id)
   if (input.excel) form.append("excel", input.excel)
@@ -206,7 +200,6 @@ export interface ForzarInput extends EntregaOptions {
   usuario: string
   clave: string
   excel: File | null
-  excel_link: string
   resultados_previos: string
 }
 
@@ -215,7 +208,6 @@ export async function forzarFaltantes(input: ForzarInput): Promise<string> {
   form.append("ruc", input.ruc)
   form.append("usuario", input.usuario)
   form.append("clave", input.clave)
-  form.append("excel_link", input.excel_link)
   form.append("resultados_previos", input.resultados_previos)
   if (input.excel) form.append("excel", input.excel)
   _appendEntrega(form, input)

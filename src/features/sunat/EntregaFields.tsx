@@ -56,13 +56,9 @@ export function EntregaFields({ value, onChange }: Props) {
         Subir a Google Drive
       </label>
       {value.usar_drive && (
-        <div className="pl-6">
-          <Input
-            placeholder="Nombre o ID de la carpeta de Drive"
-            value={value.drive_folder}
-            onChange={(e) => onChange({ drive_folder: e.target.value })}
-          />
-        </div>
+        <p className="pl-6 text-xs text-muted-foreground">
+          Los archivos se guardan en una carpeta propia de la app en tu Drive.
+        </p>
       )}
     </div>
   )
