@@ -38,6 +38,7 @@ interface GoogleNS {
         client_id: string
         scope: string
         callback: (resp: { access_token?: string; error?: string }) => void
+        error_callback?: (err: { type?: string; message?: string }) => void
       }) => TokenClient
     }
   }
@@ -94,6 +95,15 @@ function pedirToken(): Promise<string> {
       callback: (resp) => {
         if (resp.access_token) resolve(resp.access_token)
         else reject(new Error(resp.error || "No se pudo autorizar Google Drive"))
+      },
+      error_callback: (err) => {
+        const msg =
+          err.type === "popup_closed"
+            ? "Cerraste la ventana de Google antes de autorizar"
+            : err.type === "popup_failed_to_open"
+              ? "El navegador bloqueó la ventana de Google. Permite las ventanas emergentes."
+              : err.message || "No se pudo autorizar Google Drive"
+        reject(new Error(msg))
       },
     })
     cliente.requestAccessToken()

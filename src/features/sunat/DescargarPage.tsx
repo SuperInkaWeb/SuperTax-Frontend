@@ -148,7 +148,8 @@ export function DescargarPage() {
         resetPreview()
       }
     } catch (err) {
-      toast.error(apiError(err, "No se pudo abrir Google Drive"))
+      const detalle = err instanceof Error ? err.message : apiError(err)
+      toast.error(detalle || "No se pudo abrir Google Drive")
     }
   }
 
