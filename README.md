@@ -19,6 +19,9 @@ Cada `feature` se carga bajo su ruta; el sidebar muestra los módulos y marca lo
 que aún no están disponibles. La empresa activa (Modelo B) se guarda en el store
 y viaja en cada petición como cabecera `X-Company-Id`.
 
+Documentación detallada en [`docs/`](./docs/) (arquitectura, features, UI/estado,
+despliegue). Empieza por [`docs/README.md`](./docs/README.md).
+
 ## Puesta en marcha
 
 Requisitos: Node 20+, y el `plataforma-backend` corriendo en `http://localhost:8000`.

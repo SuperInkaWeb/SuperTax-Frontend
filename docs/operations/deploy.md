@@ -1,7 +1,7 @@
 # Despliegue — Frontend (Vercel)
 
 Guía completa (backend + base de datos + Auth0 + referencias cruzadas):
-ver `DEPLOY.md` en el repo **plataforma-backend**.
+ver `docs/operations/deploy.md` en el repo **plataforma-backend**.
 
 ## Resumen Vercel
 
@@ -16,6 +16,8 @@ ver `DEPLOY.md` en el repo **plataforma-backend**.
    | `VITE_AUTH0_DOMAIN` | `tu-tenant.us.auth0.com` |
    | `VITE_AUTH0_CLIENT_ID` | Client ID de la app SPA en Auth0 |
    | `VITE_AUTH0_AUDIENCE` | `https://api.plataforma` |
+   | `VITE_GOOGLE_CLIENT_ID` | *(opcional — Picker de Drive en SUNAT)* |
+   | `VITE_GOOGLE_API_KEY` | *(opcional — Picker de Drive en SUNAT)* |
 
 4. Deploy. Copia el dominio de Vercel y añádelo en Auth0 (Callback/Logout/Web Origins)
    y en `CORS_ORIGINS` del backend.
