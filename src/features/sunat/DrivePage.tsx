@@ -14,8 +14,10 @@ export function DrivePage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const queryClient = useQueryClient()
 
+  // El Drive es por usuario (no por empresa): el estado no depende de la empresa
+  // activa. Se sigue requiriendo una empresa activa para llamar al endpoint.
   const { data, isLoading } = useQuery({
-    queryKey: ["sunat", "drive", companyId],
+    queryKey: ["sunat", "drive"],
     queryFn: getDriveStatus,
     enabled: companyId != null,
   })
