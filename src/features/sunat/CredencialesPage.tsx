@@ -73,6 +73,9 @@ export function CredencialesPage() {
         <p className="mt-0.5 text-sm text-muted-foreground">
           Usuario y clave SOL con acceso al portal de SUNAT (se cifran antes de guardarse).
         </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Es la misma clave SOL de acceso al portal que usa el módulo SIRE.
+        </p>
       </div>
 
       {configuradas && (

@@ -1,13 +1,16 @@
 import { useQuery } from "@tanstack/react-query"
+import { AlertTriangle, Inbox } from "lucide-react"
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
 import { descargarReporte, getJobResult, listJobs } from "@/features/sunat/api"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Badge } from "@/shared/ui/badge"
-import { Button } from "@/shared/ui/button"
+import { Button, buttonVariants } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
+import { EmptyState } from "@/shared/ui/empty-state"
 import { Spinner } from "@/shared/ui/spinner"
 
 import type { SunatJobStatus } from "@/features/sunat/api"
@@ -93,10 +96,27 @@ export function HistorialPage() {
     )
   }
   if (isError) {
-    return <p className="text-sm text-destructive">No se pudo cargar el historial.</p>
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="No se pudo cargar el historial"
+        description="Revisa tu conexión y vuelve a intentarlo en unos segundos."
+      />
+    )
   }
   if (!data || data.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aún no hay descargas.</p>
+    return (
+      <EmptyState
+        icon={Inbox}
+        title="Aún no hay descargas"
+        description="Cuando ejecutes una descarga, aparecerá aquí con su estado y resultados."
+        action={
+          <Link to="/sunat" className={buttonVariants()}>
+            Nueva descarga
+          </Link>
+        }
+      />
+    )
   }
 
   return (

@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Check, Cloud } from "lucide-react"
 import { useEffect } from "react"
 import { toast } from "sonner"
 
 import { disconnectDrive, getDriveAuthUrl, getDriveStatus } from "@/features/sunat/api"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
 import { confirmar } from "@/shared/ui/confirm"
@@ -68,12 +70,19 @@ export function DrivePage() {
           {" "}
           <span className="font-medium">Elegir de Google Drive</span> en el formulario.
         </p>
-        <div className="flex items-center justify-between">
-          <p className="text-sm">
-            {data?.connected
-              ? "Google Drive está conectado."
-              : "Google Drive no está conectado."}
-          </p>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Cloud className="size-4 text-muted-foreground" />
+            <span className="text-sm">Google Drive</span>
+            {data?.connected ? (
+              <Badge tone="success" className="gap-1">
+                <Check className="size-3" />
+                Conectado
+              </Badge>
+            ) : (
+              <Badge tone="neutral">No conectado</Badge>
+            )}
+          </div>
         {data?.connected ? (
           <Button
             variant="outline"

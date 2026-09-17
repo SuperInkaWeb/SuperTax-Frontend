@@ -13,7 +13,7 @@ import { Button } from "@/shared/ui/button"
 import type { MapeoEntrada } from "@/features/sunat/api"
 
 const CAMPOS = [
-  { key: "col_ruc", label: "RUC emisor" },
+  { key: "col_ruc", label: "Nro Doc Identidad" },
   { key: "col_tipo", label: "Tipo comprobante" },
   { key: "col_serie", label: "Serie" },
   { key: "col_numero", label: "Número" },

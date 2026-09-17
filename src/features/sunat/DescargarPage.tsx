@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
-import { Check, Cloud, FileSpreadsheet, KeyRound, Play, SlidersHorizontal } from "lucide-react"
+import {
+  AlertTriangle,
+  Check,
+  Cloud,
+  FileSpreadsheet,
+  KeyRound,
+  Play,
+  SlidersHorizontal,
+} from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -21,6 +29,7 @@ import { MapeoColumnas } from "@/features/sunat/MapeoColumnas"
 import { ResultadosTable } from "@/features/sunat/ResultadosTable"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
@@ -142,14 +151,32 @@ export function DescargarPage() {
   const hayTipo = descargarPdf || descargarXml
   const haySeleccion = comprobantes.length === 0 || seleccionados.size > 0
   const revisionPendiente = !!analisis?.necesitaRevision && comprobantes.length === 0
-  const puedeIniciar =
-    !corriendo && tieneExcel && hayEnvio && hayTipo && haySeleccion && !revisionPendiente
 
   // Estado por sección (para orientar al usuario sin convertirlo en un wizard).
+  // Credenciales listas = hay guardadas para la empresa activa, o se completó
+  // RUC + usuario + clave en el formulario. Si no, el backend no tiene con qué
+  // loguear: por eso se exige antes de habilitar el botón (evita el error tardío).
   const credsListas =
     (creds?.configured ?? false) ||
     (ruc.trim() !== "" && usuario.trim() !== "" && clave.trim() !== "")
   const mostrarInputsCreds = !creds?.configured || editarCreds
+
+  const puedeIniciar =
+    !corriendo &&
+    credsListas &&
+    tieneExcel &&
+    hayEnvio &&
+    hayTipo &&
+    haySeleccion &&
+    !revisionPendiente
+
+  const faltantes: string[] = []
+  if (!credsListas) faltantes.push("credenciales SOL")
+  if (!tieneExcel) faltantes.push("archivo")
+  if (!hayTipo) faltantes.push("formato (PDF o XML)")
+  if (!hayEnvio) faltantes.push("envío (correo o Drive)")
+  if (!haySeleccion) faltantes.push("seleccionar comprobantes")
+  if (revisionPendiente) faltantes.push("revisar el mapeo de columnas")
 
   async function onElegirDrive() {
     try {
@@ -338,10 +365,15 @@ export function DescargarPage() {
                     }
                   />
                 </div>
-                {creds?.configured && (
+                {creds?.configured ? (
                   <Button variant="ghost" size="sm" onClick={() => setEditarCreds(false)}>
                     Usar las credenciales guardadas
                   </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Ingrésalas para esta descarga, o guárdalas en la pestaña Credenciales para no
+                    repetirlas.
+                  </p>
                 )}
               </div>
             )}
@@ -485,9 +517,9 @@ export function DescargarPage() {
                 </Button>
               )}
             </div>
-            {!corriendo && !puedeIniciar && (
+            {!corriendo && !puedeIniciar && faltantes.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Completa las secciones marcadas para iniciar la descarga.
+                Falta: {faltantes.join(", ")}.
               </p>
             )}
           </div>
@@ -515,7 +547,16 @@ export function DescargarPage() {
       )}
 
       {comprobantes.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <Alert>
+            <AlertTriangle />
+            <AlertDescription>
+              Verifica antes de iniciar: que <span className="font-medium">Nro Doc Identidad</span>{" "}
+              sea el documento del <span className="font-medium">emisor</span> (no del comprador) y
+              que los comprobantes detectados sean correctos. Ajusta las columnas arriba si hace
+              falta.
+            </AlertDescription>
+          </Alert>
           <p className="text-sm text-muted-foreground">
             {seleccionados.size} de {comprobantes.length} comprobantes seleccionados.
             {seleccionados.size === 0 && (

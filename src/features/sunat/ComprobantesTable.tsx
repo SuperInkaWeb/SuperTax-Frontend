@@ -32,7 +32,7 @@ export function ComprobantesTable({
                 />
               </th>
               <th className="p-3">Comprobante</th>
-              <th className="p-3">RUC emisor</th>
+              <th className="p-3">Nro Doc Identidad</th>
               <th className="p-3">Tipo</th>
             </tr>
           </thead>
