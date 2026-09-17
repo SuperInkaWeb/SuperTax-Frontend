@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { Download, FileSpreadsheet, Plus, ScanLine } from "lucide-react"
+import { Building2, Download, FileSpreadsheet, PackageOpen, Plus, ScanLine } from "lucide-react"
 import { Link } from "react-router-dom"
 
 import { Donut } from "@/features/dashboard/Donut"
@@ -10,6 +10,7 @@ import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { useAuthStore } from "@/shared/stores/auth"
 import { buttonVariants } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
+import { EmptyState } from "@/shared/ui/empty-state"
 
 const COLOR = { A: "#f59e0b", B: "#ef4444", C: "#3b82f6", D: "#10b981" }
 
@@ -168,18 +169,17 @@ export function DashboardPage() {
       </div>
 
       {companyId == null ? (
-        <Card>
-          <CardContent className="pt-5 text-sm text-muted-foreground">
-            No tienes una empresa activa. Usa el selector de arriba o “+ Empresa” para agregar una.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Building2}
+          title="No tienes una empresa activa"
+          description="Usa el selector de empresa en la barra superior, o “+ Empresa”, para agregar una y empezar."
+        />
       ) : modulos.length === 0 ? (
-        <Card>
-          <CardContent className="pt-5 text-sm text-muted-foreground">
-            Esta empresa aún no tiene módulos activos. Un administrador de plataforma los activará
-            pronto.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={PackageOpen}
+          title="Sin módulos activos"
+          description="Esta empresa aún no tiene módulos activos. Un administrador de plataforma los activará pronto."
+        />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {modulos.includes("sire") && <SireCard companyId={companyId} />}
