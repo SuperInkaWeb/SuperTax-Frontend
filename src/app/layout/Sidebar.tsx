@@ -1,6 +1,7 @@
 import {
   Download,
   FileSpreadsheet,
+  Landmark,
   LayoutDashboard,
   LifeBuoy,
   ScanLine,
@@ -63,7 +64,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const items = useNavItems()
   return (
     <>
-      <div className="flex h-16 items-center px-6 text-lg font-semibold">Plataforma</div>
+      <div className="flex h-16 items-center gap-2 px-6">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <Landmark className="size-4" />
+        </span>
+        <span className="text-lg font-semibold tracking-tight">SuperTax</span>
+      </div>
       <nav className="flex flex-col gap-1 px-3">
         {items
           .filter((item) => item.visible)

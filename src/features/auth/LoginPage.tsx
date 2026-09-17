@@ -1,4 +1,5 @@
 import { useAuth0 } from "@auth0/auth0-react"
+import { Landmark } from "lucide-react"
 import { Link, Navigate } from "react-router-dom"
 
 import { AUTH0_DOMAIN } from "@/shared/lib/config"
@@ -26,8 +27,13 @@ export function LoginPage() {
     <div className="grid min-h-screen place-items-center bg-background p-6">
       <div className="w-full max-w-sm space-y-6 text-center">
         <div>
-          <h1 className="text-2xl font-semibold">Plataforma</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Escaneo · SUNAT · SIRE</p>
+          <div className="flex items-center justify-center gap-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Landmark className="size-5" />
+            </span>
+            <h1 className="text-2xl font-semibold tracking-tight">SuperTax</h1>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">Escaneo · SUNAT · SIRE</p>
         </div>
         {auth0Configurado ? (
           <>

@@ -1,43 +1,25 @@
-import { NavLink, Outlet } from "react-router-dom"
+import { Cloud, Download, History, KeyRound } from "lucide-react"
 
-import { cn } from "@/shared/lib/utils"
+import { ModuleLayout } from "@/app/layout/ModuleLayout"
 
-const TABS = [
-  { to: "/sunat", label: "Descargar", end: true },
-  { to: "/sunat/credenciales", label: "Credenciales" },
-  { to: "/sunat/drive", label: "Google Drive" },
-  { to: "/sunat/historial", label: "Historial" },
+import type { TabItem } from "@/shared/ui/tabs"
+
+const TABS: TabItem[] = [
+  { to: "/sunat", label: "Descargar", icon: Download, end: true },
+  { to: "/sunat/credenciales", label: "Credenciales", icon: KeyRound },
+  { to: "/sunat/drive", label: "Google Drive", icon: Cloud },
+  { to: "/sunat/historial", label: "Historial", icon: History },
 ]
 
 export function SunatLayout() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Descarga SUNAT</h1>
-        <p className="text-sm text-muted-foreground">
-          Descarga automatizada de comprobantes desde SUNAT.
-        </p>
-      </div>
-      <nav className="flex gap-1 border-b">
-        {TABS.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            end={t.end}
-            className={({ isActive }) =>
-              cn(
-                "-mb-px border-b-2 px-3 py-2 text-sm",
-                isActive
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )
-            }
-          >
-            {t.label}
-          </NavLink>
-        ))}
-      </nav>
-      <Outlet />
-    </div>
+    <ModuleLayout
+      icon={Download}
+      title="Descarga SUNAT"
+      description="Descarga automatizada de comprobantes (PDF y XML) desde el portal SOL."
+      basePath="/sunat"
+      breadcrumbLabel="SUNAT"
+      tabs={TABS}
+    />
   )
 }
