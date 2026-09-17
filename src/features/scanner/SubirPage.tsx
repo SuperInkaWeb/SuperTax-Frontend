@@ -7,6 +7,7 @@ import { esperarDocumento, getTipos, uploadAuto } from "@/features/scanner/api"
 import { ResultadoCard } from "@/features/scanner/ResultadoCard"
 import { ZonaCarga } from "@/features/scanner/ZonaCarga"
 import { apiError } from "@/shared/lib/api/error"
+import { Alert, AlertDescription } from "@/shared/ui/alert"
 
 import type { Documento } from "@/features/scanner/api"
 
@@ -76,18 +77,16 @@ export function SubirPage() {
         return (
           <div key={r.key} className="space-y-2">
             {conIa && (
-              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-                <Bot className="mt-0.5 size-5 shrink-0 text-amber-500" />
-                <div>
-                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">
-                    Documento procesado con Inteligencia Artificial
-                  </p>
-                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-500">
+              <Alert variant="warning">
+                <Bot />
+                <AlertDescription>
+                  <p className="font-medium">Documento procesado con Inteligencia Artificial</p>
+                  <p className="mt-0.5 text-xs">
                     La IA intentó reconstruir el contenido — <strong>puede contener errores</strong>.
                     Verifica manualmente.
                   </p>
-                </div>
-              </div>
+                </AlertDescription>
+              </Alert>
             )}
             <ResultadoCard
               resultado={r.documento}

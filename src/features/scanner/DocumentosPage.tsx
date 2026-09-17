@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
+import { AlertTriangle } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import { getTipos, listDocumentos } from "@/features/scanner/api"
@@ -11,6 +12,7 @@ import { TablaDocumentos } from "@/features/scanner/TablaDocumentos"
 import { TablaRegistros } from "@/features/scanner/TablaRegistros"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Card, CardContent } from "@/shared/ui/card"
+import { EmptyState } from "@/shared/ui/empty-state"
 import { Spinner } from "@/shared/ui/spinner"
 
 import type { Documento } from "@/features/scanner/api"
@@ -122,7 +124,13 @@ export function DocumentosPage() {
     )
   }
   if (isError) {
-    return <p className="text-sm text-destructive">No se pudieron cargar los documentos.</p>
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="No se pudieron cargar los documentos"
+        description="Revisa tu conexión y vuelve a intentarlo en unos segundos."
+      />
+    )
   }
 
   const conteo = (gid: string) => docsPorGrupo[gid]?.length ?? 0
