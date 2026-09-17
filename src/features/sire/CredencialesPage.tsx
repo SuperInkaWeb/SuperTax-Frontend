@@ -152,6 +152,10 @@ export function CredencialesPage() {
 
             <Separator />
 
+            <p className="text-xs text-muted-foreground">
+              La clave SOL es la misma que usa el módulo SUNAT para descargar comprobantes.
+            </p>
+
             <div className="space-y-1.5">
               <Label htmlFor="usuario_sol">Usuario SOL</Label>
               <Input

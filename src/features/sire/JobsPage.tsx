@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Download, Eye, Plus, RotateCcw } from "lucide-react"
+import { AlertTriangle, Download, Eye, Inbox, Plus, RotateCcw } from "lucide-react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
@@ -9,6 +9,7 @@ import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Button, buttonVariants } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
+import { EmptyState } from "@/shared/ui/empty-state"
 import { Spinner } from "@/shared/ui/spinner"
 
 export function JobsPage() {
@@ -43,12 +44,14 @@ export function JobsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Link to="/sire/nueva" className={buttonVariants()}>
-          <Plus className="size-4" />
-          Nueva conciliación
-        </Link>
-      </div>
+      {sorted.length > 0 && (
+        <div className="flex justify-end">
+          <Link to="/sire/nueva" className={buttonVariants()}>
+            <Plus className="size-4" />
+            Nueva conciliación
+          </Link>
+        </div>
+      )}
 
       {isLoading && (
         <div className="flex justify-center py-10">
@@ -56,10 +59,24 @@ export function JobsPage() {
         </div>
       )}
       {isError && (
-        <p className="text-sm text-destructive">No se pudieron cargar las conciliaciones.</p>
+        <EmptyState
+          icon={AlertTriangle}
+          title="No se pudieron cargar las conciliaciones"
+          description="Revisa tu conexión y vuelve a intentarlo en unos segundos."
+        />
       )}
       {data && data.length === 0 && (
-        <p className="text-sm text-muted-foreground">Aún no hay conciliaciones.</p>
+        <EmptyState
+          icon={Inbox}
+          title="Aún no hay conciliaciones"
+          description="Crea tu primera conciliación para comparar tu registro contra la propuesta de SUNAT."
+          action={
+            <Link to="/sire/nueva" className={buttonVariants()}>
+              <Plus className="size-4" />
+              Nueva conciliación
+            </Link>
+          }
+        />
       )}
 
       {sorted.length > 0 && (
