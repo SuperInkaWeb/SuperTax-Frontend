@@ -291,7 +291,7 @@ export function DescargarPage() {
 
             {/* Fuente del Excel */}
             <div className="space-y-1.5">
-              <Label>Archivo Excel</Label>
+              <Label>Archivo (Excel, CSV o TXT)</Label>
               <div className="flex gap-4 text-sm">
                 <label className="flex items-center gap-2">
                   <input
@@ -323,7 +323,7 @@ export function DescargarPage() {
               {fuente === "archivo" ? (
                 <Input
                   type="file"
-                  accept=".xlsx,.xls,.csv"
+                  accept=".xlsx,.xls,.csv,.txt"
                   onChange={(e) => {
                     setExcel(e.target.files?.[0] ?? null)
                     resetPreview()
