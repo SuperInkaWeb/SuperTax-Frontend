@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Building2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -13,6 +14,7 @@ import { apiError } from "@/shared/lib/api/error"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
+import { EmptyState } from "@/shared/ui/empty-state"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { Select } from "@/shared/ui/select"
@@ -79,10 +81,11 @@ export function EquipoPage() {
   const empresas = companiesQuery.data ?? []
   if (empresas.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No administras ninguna empresa. Esta sección es para quienes gestionan el acceso de uno o
-        más clientes.
-      </p>
+      <EmptyState
+        icon={Building2}
+        title="No administras ninguna empresa"
+        description="Esta sección es para quienes gestionan el acceso de uno o más clientes."
+      />
     )
   }
 
@@ -91,6 +94,11 @@ export function EquipoPage() {
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Asigna a una persona el acceso a <span className="font-medium text-foreground">varias
+        empresas cliente</span> a la vez y actívalo o desactívalo por cliente. Para gestionar solo
+        la empresa activa, usa la pestaña <span className="font-medium">Miembros</span>.
+      </p>
       <Card>
         <CardContent className="pt-5">
           <form onSubmit={onAsignar} className="space-y-4">

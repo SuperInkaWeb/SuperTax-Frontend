@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ShieldAlert } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -14,6 +15,7 @@ import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Button } from "@/shared/ui/button"
 import { confirmar } from "@/shared/ui/confirm"
 import { Card, CardContent } from "@/shared/ui/card"
+import { EmptyState } from "@/shared/ui/empty-state"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { Select } from "@/shared/ui/select"
@@ -82,14 +84,21 @@ export function MiembrosPage() {
   }
   if (membersQuery.isError) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No tienes permisos para gestionar los miembros de esta empresa.
-      </p>
+      <EmptyState
+        icon={ShieldAlert}
+        title="Sin permisos para gestionar miembros"
+        description="No tienes permisos para gestionar los miembros de esta empresa."
+      />
     )
   }
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Gestiona quién tiene acceso a la <span className="font-medium text-foreground">empresa
+        activa</span>: invita personas, cambia su rol o remuévelas. Para asignar acceso a varias
+        empresas cliente a la vez, usa la pestaña <span className="font-medium">Equipo</span>.
+      </p>
       <Card>
         <CardContent className="pt-5">
           <form onSubmit={onInvitar} className="grid gap-3 sm:grid-cols-4">
