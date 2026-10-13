@@ -26,6 +26,7 @@ const MODULOS = [
   { key: "sire", label: "SIRE" },
   { key: "sunat", label: "Descarga SUNAT" },
   { key: "scanner", label: "Escaneo" },
+  { key: "datafilter", label: "DataFilter" },
 ]
 
 function ModulosEmpresa({ company, onClose }: { company: Company; onClose: () => void }) {
