@@ -6,7 +6,7 @@ import { toast } from "sonner"
 
 import { changeSheet, getDataset } from "@/features/datafilter/api"
 import { AnalysisTabs } from "@/features/datafilter/components/AnalysisTabs"
-import { FilterPanel } from "@/features/datafilter/components/FilterPanel"
+import { FilterBuilder } from "@/features/datafilter/components/FilterBuilder"
 import { enProceso, formatRows } from "@/features/datafilter/lib"
 import { apiError } from "@/shared/lib/api/error"
 import { ComputePanel } from "@/features/datafilter/panels/ComputePanel"
@@ -141,7 +141,7 @@ export function WorkspacePage() {
 
       <Card>
         <CardContent className="pt-5">
-          <FilterPanel columns={columnas} onApply={setFilter} />
+          <FilterBuilder datasetId={id} columns={ds.columns} onApply={setFilter} />
         </CardContent>
       </Card>
 
