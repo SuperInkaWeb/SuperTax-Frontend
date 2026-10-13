@@ -60,6 +60,12 @@ export async function deleteDataset(datasetId: number): Promise<void> {
   await api.delete(`${BASE}/datasets/${datasetId}`)
 }
 
+/** Re-ingesta un Excel multi-hoja usando otra hoja (procesa en 2º plano). */
+export async function changeSheet(datasetId: number, sheet: string): Promise<DatasetDetail> {
+  const { data } = await api.post<DatasetDetail>(`${BASE}/datasets/${datasetId}/sheet`, { sheet })
+  return data
+}
+
 // ─────────────────────── Filtrado / vista previa ───────────────────────
 export async function previewDataset(
   datasetId: number,
