@@ -1,4 +1,5 @@
 import {
+  Database,
   Download,
   FileSpreadsheet,
   Landmark,
@@ -50,6 +51,12 @@ function useNavItems(): NavItem[] {
       badge: actividad.sunat.activos,
     },
     { to: "/scanner", label: "Escaneo", icon: ScanLine, visible: modulos.includes("scanner") },
+    {
+      to: "/datafilter",
+      label: "DataFilter",
+      icon: Database,
+      visible: modulos.includes("datafilter"),
+    },
     {
       to: "/soporte",
       label: "Soporte",
