@@ -5,11 +5,11 @@ import { toast } from "sonner"
 
 import { dedupePreview, downloadDedupe, saveDedupe } from "@/features/datafilter/api"
 import { ResultView } from "@/features/datafilter/components/ResultView"
-import { formatRows } from "@/features/datafilter/lib"
+import { useAnalysisResult } from "@/features/datafilter/hooks/useAnalysisResult"
 import { apiError } from "@/shared/lib/api/error"
 import { Button } from "@/shared/ui/button"
 
-import type { Delimiter, DedupeResponse, DownloadFormat, FilterGroup } from "@/features/datafilter/types"
+import type { Delimiter, DownloadFormat, FilterGroup } from "@/features/datafilter/types"
 
 interface PanelProps {
   datasetId: number
@@ -17,18 +17,22 @@ interface PanelProps {
   filter: FilterGroup | null
 }
 
-const PAGINA = 100
-
 export function DedupePanel({ datasetId, columns, filter }: PanelProps) {
   const queryClient = useQueryClient()
   const [claves, setClaves] = useState<string[]>([])
   const [descargando, setDescargando] = useState(false)
 
-  const ver = useMutation({
-    mutationFn: () =>
-      dedupePreview(datasetId, { filter, key_columns: claves, limit: PAGINA, offset: 0 }),
-  })
-  const res: DedupeResponse | undefined = ver.data
+  const result = useAnalysisResult()
+
+  function ejecutar() {
+    result.run((offset, sort) =>
+      dedupePreview(datasetId, {
+        filter, key_columns: claves,
+        order_column: sort?.column ?? null, order_direction: sort?.direction,
+        limit: result.limit, offset,
+      }),
+    )
+  }
 
   const guardar = useMutation({
     mutationFn: (name: string) => saveDedupe(datasetId, { filter, key_columns: claves, name }),
@@ -54,9 +58,6 @@ export function DedupePanel({ datasetId, columns, filter }: PanelProps) {
     setClaves((prev) => (prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]))
   }
 
-  const countLabel =
-    res == null ? "filas" : `filas únicas (de ${formatRows(res.total_original)})`
-
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -78,19 +79,14 @@ export function DedupePanel({ datasetId, columns, filter }: PanelProps) {
             </label>
           ))}
         </div>
-        <Button onClick={() => ver.mutate()} disabled={ver.isPending}>
+        <Button onClick={ejecutar} disabled={result.loading}>
           <Copy className="size-4" />
           Ver sin duplicados
         </Button>
       </div>
 
       <ResultView
-        loading={ver.isPending}
-        error={ver.isError ? apiError(ver.error, "No se pudo quitar duplicados") : null}
-        columns={res?.columns ?? []}
-        rows={res?.rows ?? []}
-        total={res?.total_matched ?? null}
-        countLabel={countLabel}
+        result={result}
         onDownload={descargar}
         downloading={descargando}
         onSave={(name) => guardar.mutate(name)}

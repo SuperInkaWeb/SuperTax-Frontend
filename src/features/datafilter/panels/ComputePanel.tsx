@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { computePreview, downloadComputed, saveComputed } from "@/features/datafilter/api"
 import { ResultView } from "@/features/datafilter/components/ResultView"
+import { useAnalysisResult } from "@/features/datafilter/hooks/useAnalysisResult"
 import { apiError } from "@/shared/lib/api/error"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -17,7 +18,6 @@ import type {
   Expression,
   FilterGroup,
   FunctionName,
-  PreviewResponse,
 } from "@/features/datafilter/types"
 
 interface PanelProps {
@@ -47,7 +47,6 @@ interface ColumnaUI {
 }
 
 let contador = 0
-const PAGINA = 100
 
 /** "123"/"1.5" → número; el resto queda como texto. */
 function coerce(texto: string): string | number {
@@ -89,11 +88,17 @@ export function ComputePanel({ datasetId, columns, filter }: PanelProps) {
         },
       }))
 
-  const ver = useMutation({
-    mutationFn: () =>
-      computePreview(datasetId, { filter, columns: payload(), limit: PAGINA, offset: 0 }),
-  })
-  const res: PreviewResponse | undefined = ver.data
+  const result = useAnalysisResult()
+
+  function ejecutar() {
+    result.run((offset, sort) =>
+      computePreview(datasetId, {
+        filter, columns: payload(),
+        order_column: sort?.column ?? null, order_direction: sort?.direction,
+        limit: result.limit, offset,
+      }),
+    )
+  }
 
   const guardar = useMutation({
     mutationFn: (name: string) => saveComputed(datasetId, { filter, columns: payload(), name }),
@@ -182,7 +187,7 @@ export function ComputePanel({ datasetId, columns, filter }: PanelProps) {
             <Plus className="size-4" />
             Añadir columna
           </Button>
-          <Button size="sm" onClick={() => ver.mutate()} disabled={sinColumnas || ver.isPending}>
+          <Button size="sm" onClick={ejecutar} disabled={sinColumnas || result.loading}>
             <Calculator className="size-4" />
             Ver resultado
           </Button>
@@ -190,11 +195,7 @@ export function ComputePanel({ datasetId, columns, filter }: PanelProps) {
       </div>
 
       <ResultView
-        loading={ver.isPending}
-        error={ver.isError ? apiError(ver.error, "No se pudo calcular") : null}
-        columns={res?.columns ?? []}
-        rows={res?.rows ?? []}
-        total={res?.total_matched ?? null}
+        result={result}
         onDownload={descargar}
         downloading={descargando}
         onSave={(name) => guardar.mutate(name)}

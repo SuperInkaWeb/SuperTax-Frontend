@@ -33,6 +33,12 @@ export function formatRows(rows: number | null): string {
   return rows == null ? "—" : rows.toLocaleString("es-PE")
 }
 
+/** Número legible: miles con separador y sin ruido de coma flotante. */
+export function cleanNumber(value: number): string {
+  if (Number.isInteger(value)) return value.toLocaleString("es-PE")
+  return Number(value.toFixed(6)).toLocaleString("es-PE", { maximumFractionDigits: 6 })
+}
+
 /** true mientras el dataset sigue procesándose (para seguir sondeando). */
 export function enProceso(status: DatasetStatus): boolean {
   return status === "pending" || status === "processing"

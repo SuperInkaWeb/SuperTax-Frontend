@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { downloadReplace, replacePreview, saveReplace } from "@/features/datafilter/api"
 import { ResultView } from "@/features/datafilter/components/ResultView"
+import { useAnalysisResult } from "@/features/datafilter/hooks/useAnalysisResult"
 import { apiError } from "@/shared/lib/api/error"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -15,7 +16,6 @@ import type {
   DownloadFormat,
   FilterGroup,
   MatchMode,
-  PreviewResponse,
   ReplacementRule,
 } from "@/features/datafilter/types"
 
@@ -35,7 +35,6 @@ interface Regla {
 }
 
 let contador = 0
-const PAGINA = 100
 
 export function ReplacePanel({ datasetId, columns, filter }: PanelProps) {
   const queryClient = useQueryClient()
@@ -56,11 +55,17 @@ export function ReplacePanel({ datasetId, columns, filter }: PanelProps) {
         column, mode, search, replace, case_sensitive,
       }))
 
-  const ver = useMutation({
-    mutationFn: () =>
-      replacePreview(datasetId, { filter, replacements: payload(), limit: PAGINA, offset: 0 }),
-  })
-  const res: PreviewResponse | undefined = ver.data
+  const result = useAnalysisResult()
+
+  function ejecutar() {
+    result.run((offset, sort) =>
+      replacePreview(datasetId, {
+        filter, replacements: payload(),
+        order_column: sort?.column ?? null, order_direction: sort?.direction,
+        limit: result.limit, offset,
+      }),
+    )
+  }
 
   const guardar = useMutation({
     mutationFn: (name: string) =>
@@ -151,7 +156,7 @@ export function ReplacePanel({ datasetId, columns, filter }: PanelProps) {
             <Plus className="size-4" />
             Añadir regla
           </Button>
-          <Button size="sm" onClick={() => ver.mutate()} disabled={sinReglas || ver.isPending}>
+          <Button size="sm" onClick={ejecutar} disabled={sinReglas || result.loading}>
             <Replace className="size-4" />
             Ver resultado
           </Button>
@@ -159,11 +164,7 @@ export function ReplacePanel({ datasetId, columns, filter }: PanelProps) {
       </div>
 
       <ResultView
-        loading={ver.isPending}
-        error={ver.isError ? apiError(ver.error, "No se pudo aplicar") : null}
-        columns={res?.columns ?? []}
-        rows={res?.rows ?? []}
-        total={res?.total_matched ?? null}
+        result={result}
         onDownload={descargar}
         downloading={descargando}
         onSave={(name) => guardar.mutate(name)}

@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { downloadPivot, pivotPreview, savePivot } from "@/features/datafilter/api"
 import { ResultView } from "@/features/datafilter/components/ResultView"
+import { useAnalysisResult } from "@/features/datafilter/hooks/useAnalysisResult"
 import { apiError } from "@/shared/lib/api/error"
 import { Button } from "@/shared/ui/button"
 import { Select } from "@/shared/ui/select"
@@ -15,7 +16,6 @@ import type {
   DownloadFormat,
   FilterGroup,
   Measure,
-  PivotResponse,
 } from "@/features/datafilter/types"
 
 interface PanelProps {
@@ -40,7 +40,6 @@ interface MedidaUI {
 }
 
 let contador = 0
-const PAGINA = 100
 
 export function PivotPanel({ datasetId, columns, filter }: PanelProps) {
   const queryClient = useQueryClient()
@@ -70,10 +69,11 @@ export function PivotPanel({ datasetId, columns, filter }: PanelProps) {
     percent_of_total: percent,
   })
 
-  const ver = useMutation({
-    mutationFn: () => pivotPreview(datasetId, { ...spec(), limit: PAGINA, offset: 0 }),
-  })
-  const res: PivotResponse | undefined = ver.data
+  const result = useAnalysisResult()
+
+  function ejecutar() {
+    result.run((offset) => pivotPreview(datasetId, { ...spec(), limit: result.limit, offset }))
+  }
 
   const guardar = useMutation({
     mutationFn: (name: string) => savePivot(datasetId, { ...spec(), name }),
@@ -188,7 +188,7 @@ export function PivotPanel({ datasetId, columns, filter }: PanelProps) {
             <input type="checkbox" checked={percent} onChange={(e) => setPercent(e.target.checked)} />
             % del total (Suma/Conteo)
           </label>
-          <Button onClick={() => ver.mutate()} disabled={invalido || ver.isPending}>
+          <Button onClick={ejecutar} disabled={invalido || result.loading}>
             <Table2 className="size-4" />
             Ver reporte
           </Button>
@@ -196,13 +196,8 @@ export function PivotPanel({ datasetId, columns, filter }: PanelProps) {
       </div>
 
       <ResultView
-        loading={ver.isPending}
-        error={ver.isError ? apiError(ver.error, "No se pudo generar el reporte") : null}
-        columns={res?.columns ?? []}
-        rows={res?.rows ?? []}
-        total={res?.total_matched ?? null}
-        totals={res?.totals}
-        countLabel="filas agrupadas"
+        result={result}
+        sortable={false}
         onDownload={descargar}
         downloading={descargando}
         onSave={(name) => guardar.mutate(name)}
