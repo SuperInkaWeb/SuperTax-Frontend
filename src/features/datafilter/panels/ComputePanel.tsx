@@ -1,30 +1,13 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Calculator, Plus, X } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
 
 import { computePreview, downloadComputed, saveComputed } from "@/features/datafilter/api"
-import { ResultView } from "@/features/datafilter/components/ResultView"
-import { useAnalysisResult } from "@/features/datafilter/hooks/useAnalysisResult"
-import { apiError } from "@/shared/lib/api/error"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Select } from "@/shared/ui/select"
 
-import type {
-  ComputedColumn,
-  Delimiter,
-  DownloadFormat,
-  Expression,
-  FilterGroup,
-  FunctionName,
-} from "@/features/datafilter/types"
-
-interface PanelProps {
-  datasetId: number
-  columns: string[]
-  filter: FilterGroup | null
-}
+import type { ToolProps } from "@/features/datafilter/components/tool"
+import type { ComputedColumn, Expression, FunctionName } from "@/features/datafilter/types"
 
 interface FunctionMeta {
   value: FunctionName
@@ -80,12 +63,11 @@ interface ArgDraft {
   column: string
   literal: string
 }
-
 interface ColumnDraft {
   name: string
   fn: FunctionName
   args: ArgDraft[]
-  comparator: FunctionName // solo cuando fn === "if"
+  comparator: FunctionName
 }
 
 function newArg(): ArgDraft {
@@ -131,12 +113,12 @@ function previewFormula(draft: ColumnDraft): string {
   return `${name} = ${token}(${parts.join(", ")})`
 }
 
-export function ComputePanel({ datasetId, columns, filter }: PanelProps) {
-  const queryClient = useQueryClient()
-  const result = useAnalysisResult()
+const LIMIT = 100
+
+/** Configuración de columnas calculadas (el resultado se muestra al centro). */
+export function ComputePanel({ datasetId, columns, filter, onPreview }: ToolProps) {
   const [drafts, setDrafts] = useState<ColumnDraft[]>([newColumnDraft()])
   const [error, setError] = useState<string | null>(null)
-  const [descargando, setDescargando] = useState(false)
 
   function updateDraft(index: number, patch: Partial<ColumnDraft>) {
     setDrafts((cur) => cur.map((d, i) => (i === index ? { ...d, ...patch } : d)))
@@ -214,233 +196,200 @@ export function ComputePanel({ datasetId, columns, filter }: PanelProps) {
     const cols = validateAndBuild()
     if (!cols) return
     setError(null)
-    result.run((offset, sort) =>
-      computePreview(datasetId, {
-        filter, columns: cols,
-        order_column: sort?.column ?? null, order_direction: sort?.direction,
-        limit: result.limit, offset,
-      }),
+    onPreview(
+      (offset, sort) =>
+        computePreview(datasetId, {
+          filter, columns: cols,
+          order_column: sort?.column ?? null, order_direction: sort?.direction,
+          limit: LIMIT, offset,
+        }),
+      {
+        sortable: true,
+        download: (format, delimiter) =>
+          downloadComputed(datasetId, { filter, columns: cols, format, delimiter }),
+        save: async (name) => {
+          await saveComputed(datasetId, { filter, columns: cols, name })
+        },
+      },
     )
   }
 
-  const guardar = useMutation({
-    mutationFn: ({ name, cols }: { name: string; cols: ComputedColumn[] }) =>
-      saveComputed(datasetId, { filter, columns: cols, name }),
-    onSuccess: () => {
-      toast.success("Guardando… aparecerá en Datasets al terminar")
-      queryClient.invalidateQueries({ queryKey: ["datafilter", "datasets"] })
-    },
-    onError: (e) => toast.error(apiError(e, "No se pudo guardar")),
-  })
-
-  function alGuardar(name: string) {
-    const cols = validateAndBuild()
-    if (cols) guardar.mutate({ name, cols })
-  }
-
-  async function descargar(format: DownloadFormat, delimiter: Delimiter | undefined) {
-    const cols = validateAndBuild()
-    if (!cols) return
-    setDescargando(true)
-    try {
-      await downloadComputed(datasetId, { filter, columns: cols, format, delimiter })
-    } catch (e) {
-      toast.error(apiError(e, "No se pudo descargar"))
-    } finally {
-      setDescargando(false)
-    }
-  }
-
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        {drafts.map((draft, index) => {
-          const meta = FUNCTION_META.get(draft.fn)!
-          const canAddArg = meta.max === null || draft.args.length < meta.max
-          const isIf = draft.fn === "if"
+    <div className="space-y-3">
+      {drafts.map((draft, index) => {
+        const meta = FUNCTION_META.get(draft.fn)!
+        const canAddArg = meta.max === null || draft.args.length < meta.max
+        const isIf = draft.fn === "if"
 
-          const argFields = (argIndex: number) => {
-            const arg = draft.args[argIndex]
-            if (!arg) return null
-            return (
-              <>
-                <Select
-                  className="w-32"
-                  value={arg.source}
-                  onChange={(e) => updateArg(index, argIndex, { source: e.target.value as ArgDraft["source"] })}
-                >
-                  <option value="column">Columna</option>
-                  <option value="literal">Valor fijo</option>
-                </Select>
-                {arg.source === "column" ? (
-                  <Select
-                    className="flex-1"
-                    value={arg.column}
-                    onChange={(e) => updateArg(index, argIndex, { column: e.target.value })}
-                  >
-                    <option value="">Elige columna…</option>
-                    {columns.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    className="flex-1"
-                    placeholder="Texto o número"
-                    value={arg.literal}
-                    onChange={(e) => updateArg(index, argIndex, { literal: e.target.value })}
-                  />
-                )}
-              </>
-            )
-          }
-
+        const argFields = (argIndex: number) => {
+          const arg = draft.args[argIndex]
+          if (!arg) return null
           return (
-            <div key={index} className="space-y-2 rounded-lg border bg-muted/30 p-3">
-              <div className="flex flex-wrap items-end gap-3">
-                <label className="min-w-[200px] flex-1">
-                  <span className="mb-1 block text-xs font-medium text-muted-foreground">
-                    Nombre de la columna nueva
-                  </span>
-                  <Input
-                    placeholder="p. ej. Nombre completo"
-                    value={draft.name}
-                    onChange={(e) => updateDraft(index, { name: e.target.value })}
-                  />
-                </label>
-                <label className="w-56">
-                  <span className="mb-1 block text-xs font-medium text-muted-foreground">Función</span>
-                  <Select value={draft.fn} onChange={(e) => changeFn(index, e.target.value as FunctionName)}>
-                    {FUNCTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                {drafts.length > 1 && (
+            <>
+              <Select
+                className="w-28"
+                value={arg.source}
+                onChange={(e) => updateArg(index, argIndex, { source: e.target.value as ArgDraft["source"] })}
+              >
+                <option value="column">Columna</option>
+                <option value="literal">Valor fijo</option>
+              </Select>
+              {arg.source === "column" ? (
+                <Select
+                  className="flex-1"
+                  value={arg.column}
+                  onChange={(e) => updateArg(index, argIndex, { column: e.target.value })}
+                >
+                  <option value="">Elige columna…</option>
+                  {columns.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  className="flex-1"
+                  placeholder="Texto o número"
+                  value={arg.literal}
+                  onChange={(e) => updateArg(index, argIndex, { literal: e.target.value })}
+                />
+              )}
+            </>
+          )
+        }
+
+        return (
+          <div key={index} className="space-y-2 rounded-lg border bg-muted/30 p-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="min-w-[160px] flex-1">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Nombre de la columna nueva
+                </span>
+                <Input
+                  placeholder="p. ej. Nombre completo"
+                  value={draft.name}
+                  onChange={(e) => updateDraft(index, { name: e.target.value })}
+                />
+              </label>
+              <label className="w-52">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">Función</span>
+                <Select value={draft.fn} onChange={(e) => changeFn(index, e.target.value as FunctionName)}>
+                  {FUNCTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              {drafts.length > 1 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mb-1"
+                  onClick={() => setDrafts((cur) => cur.filter((_, i) => i !== index))}
+                >
+                  Quitar
+                </Button>
+              )}
+            </div>
+
+            {isIf ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Si se cumple la condición…</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {argFields(0)}
+                    <Select
+                      className="w-44"
+                      value={draft.comparator}
+                      onChange={(e) => updateDraft(index, { comparator: e.target.value as FunctionName })}
+                    >
+                      {COMPARATORS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </Select>
+                    {argFields(1)}
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Entonces (si se cumple)</span>
+                    <div className="flex items-center gap-2">{argFields(2)}</div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Si no (si no se cumple)</span>
+                    <div className="flex items-center gap-2">{argFields(3)}</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {draft.args.map((_, argIndex) => (
+                  <div key={argIndex} className="flex items-center gap-2">
+                    <span className="w-24 shrink-0 text-xs font-medium text-muted-foreground">
+                      {argLabel(meta, argIndex)}
+                    </span>
+                    {argFields(argIndex)}
+                    {draft.args.length > meta.min && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() =>
+                          setDrafts((cur) =>
+                            cur.map((d, i) =>
+                              i === index ? { ...d, args: d.args.filter((_, j) => j !== argIndex) } : d,
+                            ),
+                          )
+                        }
+                        aria-label="Quitar argumento"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {canAddArg && (
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="mb-1"
-                    onClick={() => setDrafts((cur) => cur.filter((_, i) => i !== index))}
+                    onClick={() =>
+                      setDrafts((cur) =>
+                        cur.map((d, i) => (i === index ? { ...d, args: [...d.args, newArg()] } : d)),
+                      )
+                    }
                   >
-                    Quitar
+                    <Plus className="size-4" />
+                    argumento
                   </Button>
                 )}
+                {meta.hint && <p className="text-xs text-muted-foreground">{meta.hint}</p>}
               </div>
+            )}
 
-              {isIf ? (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground">Si se cumple la condición…</span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {argFields(0)}
-                      <Select
-                        className="w-48"
-                        value={draft.comparator}
-                        onChange={(e) => updateDraft(index, { comparator: e.target.value as FunctionName })}
-                      >
-                        {COMPARATORS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </Select>
-                      {argFields(1)}
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-muted-foreground">Entonces (si se cumple)</span>
-                      <div className="flex items-center gap-2">{argFields(2)}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-muted-foreground">Si no (si no se cumple)</span>
-                      <div className="flex items-center gap-2">{argFields(3)}</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {draft.args.map((_, argIndex) => (
-                    <div key={argIndex} className="flex items-center gap-2">
-                      <span className="w-24 shrink-0 text-xs font-medium text-muted-foreground">
-                        {argLabel(meta, argIndex)}
-                      </span>
-                      {argFields(argIndex)}
-                      {draft.args.length > meta.min && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() =>
-                            setDrafts((cur) =>
-                              cur.map((d, i) =>
-                                i === index ? { ...d, args: d.args.filter((_, j) => j !== argIndex) } : d,
-                              ),
-                            )
-                          }
-                          aria-label="Quitar argumento"
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  {canAddArg && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        setDrafts((cur) =>
-                          cur.map((d, i) => (i === index ? { ...d, args: [...d.args, newArg()] } : d)),
-                        )
-                      }
-                    >
-                      <Plus className="size-4" />
-                      argumento
-                    </Button>
-                  )}
-                  {meta.hint && <p className="text-xs text-muted-foreground">{meta.hint}</p>}
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5">
-                <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Fórmula
-                </span>
-                <code className="truncate font-mono text-[11px]">{previewFormula(draft)}</code>
-              </div>
+            <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5">
+              <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Fórmula
+              </span>
+              <code className="truncate font-mono text-[11px]">{previewFormula(draft)}</code>
             </div>
-          )
-        })}
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setDrafts((cur) => [...cur, newColumnDraft()])}
-          >
-            <Plus className="size-4" />
-            Añadir otra columna
-          </Button>
-          <Button size="sm" onClick={ejecutar} disabled={result.loading}>
-            <Calculator className="size-4" />
-            Ver resultado
-          </Button>
-        </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-      </div>
+          </div>
+        )
+      })}
 
-      <ResultView
-        result={result}
-        onDownload={descargar}
-        downloading={descargando}
-        onSave={alGuardar}
-        saving={guardar.isPending}
-        placeholder="Define columnas calculadas y pulsa “Ver resultado”."
-      />
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => setDrafts((cur) => [...cur, newColumnDraft()])}>
+          <Plus className="size-4" />
+          Añadir otra columna
+        </Button>
+        <Button size="sm" onClick={ejecutar}>
+          <Calculator className="size-4" />
+          Ver resultado
+        </Button>
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   )
 }

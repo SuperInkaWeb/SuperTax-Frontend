@@ -30,6 +30,7 @@ export interface AnalysisResult {
   run: (fetcher: Fetcher) => void
   changePage: (offset: number) => void
   changeSort: (column: string) => void
+  reset: () => void
 }
 
 export function useAnalysisResult(limit = 100): AnalysisResult {
@@ -87,5 +88,14 @@ export function useAnalysisResult(limit = 100): AnalysisResult {
     [exec, sort],
   )
 
-  return { ran, loading, error, data, offset, sort, limit, run, changePage, changeSort }
+  const reset = useCallback(() => {
+    fetcherRef.current = null
+    setRan(false)
+    setData(null)
+    setError(null)
+    setOffset(0)
+    setSort(null)
+  }, [])
+
+  return { ran, loading, error, data, offset, sort, limit, run, changePage, changeSort, reset }
 }

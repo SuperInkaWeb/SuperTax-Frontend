@@ -16,8 +16,10 @@ import { DatasetList } from "@/features/datafilter/components/DatasetList"
 import { DownloadBar } from "@/features/datafilter/components/DownloadBar"
 import { Drawer } from "@/features/datafilter/components/Drawer"
 import { FilterBuilder } from "@/features/datafilter/components/FilterBuilder"
+import { ResultCenter } from "@/features/datafilter/components/ResultCenter"
 import { Ribbon } from "@/features/datafilter/components/Ribbon"
 import { UploadDropzone } from "@/features/datafilter/components/UploadDropzone"
+import { useAnalysisResult } from "@/features/datafilter/hooks/useAnalysisResult"
 import { enProceso, formatRows } from "@/features/datafilter/lib"
 import { ChartPanel } from "@/features/datafilter/panels/ChartPanel"
 import { ComputePanel } from "@/features/datafilter/panels/ComputePanel"
@@ -37,6 +39,8 @@ import { Select } from "@/shared/ui/select"
 import { Spinner } from "@/shared/ui/spinner"
 
 import type { WorkspaceMode } from "@/features/datafilter/components/Ribbon"
+import type { ResultFetcher, ToolPreview } from "@/features/datafilter/components/tool"
+import type { ReactNode } from "react"
 import type {
   DatasetSummary,
   Delimiter,
@@ -45,7 +49,6 @@ import type {
   FilterNode,
   SortSpec,
 } from "@/features/datafilter/types"
-import type { ReactNode } from "react"
 
 type OriginTab = "uploaded" | "derived"
 
@@ -67,6 +70,27 @@ function contarCondiciones(node: FilterGroup): number {
   )
 }
 
+/** Drawer de una herramienta, con su título/descripción del catálogo. */
+function ToolDrawer({
+  mode, activeTool, onClose, children,
+}: {
+  mode: WorkspaceMode
+  activeTool: WorkspaceMode | null
+  onClose: () => void
+  children: ReactNode
+}) {
+  return (
+    <Drawer
+      open={activeTool === mode}
+      title={TOOL_TITLES[mode].title}
+      description={TOOL_TITLES[mode].description}
+      onClose={onClose}
+    >
+      {children}
+    </Drawer>
+  )
+}
+
 export function WorkspacePage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const queryClient = useQueryClient()
@@ -82,6 +106,13 @@ export function WorkspacePage() {
   const [total, setTotal] = useState<number | null>(null)
   const [progreso, setProgreso] = useState<number | null>(null)
   const [descargando, setDescargando] = useState(false)
+
+  // Resultado de una herramienta (pivote/columnas/reemplazar/duplicados) al centro.
+  const result = useAnalysisResult()
+  const [toolOptions, setToolOptions] = useState<ToolPreview | null>(null)
+  const [resultTool, setResultTool] = useState<WorkspaceMode | null>(null)
+  const [resultDownloading, setResultDownloading] = useState(false)
+  const [resultSaving, setResultSaving] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput.trim()), 300)
@@ -116,6 +147,12 @@ export function WorkspacePage() {
   const nSubidos = datasets.filter((d) => !esDerivado(d)).length
   const nDerivados = datasets.filter(esDerivado).length
 
+  function cerrarResultado() {
+    result.reset()
+    setToolOptions(null)
+    setResultTool(null)
+  }
+
   function seleccionar(dataset: DatasetSummary) {
     setSelectedId(dataset.id)
     setFilter(null)
@@ -125,6 +162,41 @@ export function WorkspacePage() {
     setActiveTool(null)
     setTotal(null)
     setSidebarOpen(false)
+    cerrarResultado()
+  }
+
+  function runPreview(mode: WorkspaceMode, fetcher: ResultFetcher, options: ToolPreview) {
+    setResultTool(mode)
+    setToolOptions(options)
+    result.run(fetcher)
+    setActiveTool(null) // cierra el drawer para ver el resultado a lo ancho
+  }
+
+  async function descargarResultado(format: DownloadFormat, delimiter: Delimiter | undefined) {
+    if (!toolOptions) return
+    setResultDownloading(true)
+    try {
+      await toolOptions.download(format, delimiter)
+    } catch (e) {
+      toast.error(apiError(e, "No se pudo descargar"))
+    } finally {
+      setResultDownloading(false)
+    }
+  }
+
+  async function guardarResultado(name: string) {
+    if (!toolOptions?.save) return
+    setResultSaving(true)
+    try {
+      await toolOptions.save(name)
+      toast.success("Guardando… aparecerá en Reportes al terminar")
+      queryClient.invalidateQueries({ queryKey: ["datafilter", "datasets"] })
+      setOriginTab("derived")
+    } catch (e) {
+      toast.error(apiError(e, "No se pudo guardar"))
+    } finally {
+      setResultSaving(false)
+    }
   }
 
   const subir = useMutation({
@@ -165,6 +237,7 @@ export function WorkspacePage() {
   })
 
   function alternarHerramienta(tool: WorkspaceMode) {
+    cerrarResultado() // el resultado anterior no aplica a otra herramienta
     setActiveTool((cur) => (cur === tool ? null : tool))
   }
 
@@ -315,27 +388,43 @@ export function WorkspacePage() {
 
             <Card className="min-h-0 flex-1 overflow-hidden">
               <CardContent className="flex h-full min-h-0 flex-col gap-3 pt-4">
-                <div>
-                  <p className="text-sm font-medium">{ds.original_filename}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {ds.columns.length} columnas · {formatRows(ds.row_count)} filas
-                    {filter ? " · filtro activo" : ""}
-                  </p>
-                </div>
-                <div className="min-h-0 flex-1">
-                  <DataGrid
-                    key={`${ds.id}-${ds.active_sheet ?? ""}`}
-                    datasetId={ds.id}
-                    filter={filter}
-                    sort={sort}
-                    search={search}
-                    onSort={alOrdenar}
-                    onTotal={setTotal}
+                {result.ran ? (
+                  <ResultCenter
+                    toolTitle={resultTool ? TOOL_TITLES[resultTool].title : ""}
+                    result={result}
+                    sortable={toolOptions?.sortable ?? false}
+                    totalsLabel={toolOptions?.totalsLabel}
+                    onDownload={descargarResultado}
+                    downloading={resultDownloading}
+                    onSave={toolOptions?.save ? guardarResultado : undefined}
+                    saving={resultSaving}
+                    onClose={cerrarResultado}
                   />
-                </div>
-                <div className="flex items-center justify-end border-t pt-3">
-                  <DownloadBar onDownload={descargar} pending={descargando} />
-                </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-sm font-medium">{ds.original_filename}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {ds.columns.length} columnas · {formatRows(ds.row_count)} filas
+                        {filter ? " · filtro activo" : ""}
+                      </p>
+                    </div>
+                    <div className="min-h-0 flex-1">
+                      <DataGrid
+                        key={`${ds.id}-${ds.active_sheet ?? ""}`}
+                        datasetId={ds.id}
+                        filter={filter}
+                        sort={sort}
+                        search={search}
+                        onSort={alOrdenar}
+                        onTotal={setTotal}
+                      />
+                    </div>
+                    <div className="flex items-center justify-end border-t pt-3">
+                      <DownloadBar onDownload={descargar} pending={descargando} />
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -357,24 +446,48 @@ export function WorkspacePage() {
               />
             </Drawer>
 
-            {([
-              ["pivot", <PivotPanel key={`p-${ds.id}`} datasetId={ds.id} columns={columnas} filter={filter} />],
-              ["compute", <ComputePanel key={`c-${ds.id}`} datasetId={ds.id} columns={columnas} filter={filter} />],
-              ["replace", <ReplacePanel key={`r-${ds.id}`} datasetId={ds.id} columns={columnas} filter={filter} />],
-              ["dedupe", <DedupePanel key={`d-${ds.id}`} datasetId={ds.id} columns={columnas} filter={filter} />],
-              ["stats", <StatsPanel key={`s-${ds.id}`} datasetId={ds.id} columns={columnas} filter={filter} />],
-              ["chart", <ChartPanel key={`g-${ds.id}`} datasetId={ds.id} columns={columnas} filter={filter} />],
-            ] as Array<[WorkspaceMode, ReactNode]>).map(([mode, node]) => (
-              <Drawer
-                key={mode}
-                open={activeTool === mode}
-                title={TOOL_TITLES[mode].title}
-                description={TOOL_TITLES[mode].description}
-                onClose={() => setActiveTool(null)}
-              >
-                {node}
-              </Drawer>
-            ))}
+            <ToolDrawer mode="pivot" activeTool={activeTool} onClose={() => setActiveTool(null)}>
+              <PivotPanel
+                key={`p-${ds.id}`}
+                datasetId={ds.id}
+                columns={columnas}
+                filter={filter}
+                onPreview={(f, o) => runPreview("pivot", f, o)}
+              />
+            </ToolDrawer>
+            <ToolDrawer mode="compute" activeTool={activeTool} onClose={() => setActiveTool(null)}>
+              <ComputePanel
+                key={`c-${ds.id}`}
+                datasetId={ds.id}
+                columns={columnas}
+                filter={filter}
+                onPreview={(f, o) => runPreview("compute", f, o)}
+              />
+            </ToolDrawer>
+            <ToolDrawer mode="replace" activeTool={activeTool} onClose={() => setActiveTool(null)}>
+              <ReplacePanel
+                key={`r-${ds.id}`}
+                datasetId={ds.id}
+                columns={columnas}
+                filter={filter}
+                onPreview={(f, o) => runPreview("replace", f, o)}
+              />
+            </ToolDrawer>
+            <ToolDrawer mode="dedupe" activeTool={activeTool} onClose={() => setActiveTool(null)}>
+              <DedupePanel
+                key={`d-${ds.id}`}
+                datasetId={ds.id}
+                columns={columnas}
+                filter={filter}
+                onPreview={(f, o) => runPreview("dedupe", f, o)}
+              />
+            </ToolDrawer>
+            <ToolDrawer mode="stats" activeTool={activeTool} onClose={() => setActiveTool(null)}>
+              <StatsPanel key={`s-${ds.id}`} datasetId={ds.id} columns={columnas} filter={filter} />
+            </ToolDrawer>
+            <ToolDrawer mode="chart" activeTool={activeTool} onClose={() => setActiveTool(null)}>
+              <ChartPanel key={`g-${ds.id}`} datasetId={ds.id} columns={columnas} filter={filter} />
+            </ToolDrawer>
           </>
         )}
       </section>
