@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertTriangle, BarChart3, Calculator, Copy, Database, Replace, Table2, TableProperties } from "lucide-react"
+import { AlertTriangle, BarChart3, BarChartHorizontal, Calculator, Copy, Database, Replace, Table2, TableProperties } from "lucide-react"
 import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { toast } from "sonner"
@@ -9,6 +9,7 @@ import { AnalysisTabs } from "@/features/datafilter/components/AnalysisTabs"
 import { FilterBuilder } from "@/features/datafilter/components/FilterBuilder"
 import { enProceso, formatRows } from "@/features/datafilter/lib"
 import { apiError } from "@/shared/lib/api/error"
+import { ChartPanel } from "@/features/datafilter/panels/ChartPanel"
 import { ComputePanel } from "@/features/datafilter/panels/ComputePanel"
 import { DatosPanel } from "@/features/datafilter/panels/DatosPanel"
 import { DedupePanel } from "@/features/datafilter/panels/DedupePanel"
@@ -32,6 +33,7 @@ const TABS: ToolTab[] = [
   { id: "reemplazar", label: "Reemplazar", icon: Replace },
   { id: "duplicados", label: "Duplicados", icon: Copy },
   { id: "pivote", label: "Pivote", icon: Table2 },
+  { id: "grafico", label: "Gráfico", icon: BarChartHorizontal },
   { id: "estadisticas", label: "Estadísticas", icon: BarChart3 },
 ]
 
@@ -152,6 +154,7 @@ export function WorkspacePage() {
       {tab === "reemplazar" && <ReplacePanel datasetId={id} columns={columnas} filter={filter} />}
       {tab === "duplicados" && <DedupePanel datasetId={id} columns={columnas} filter={filter} />}
       {tab === "pivote" && <PivotPanel datasetId={id} columns={columnas} filter={filter} />}
+      {tab === "grafico" && <ChartPanel datasetId={id} columns={columnas} filter={filter} />}
       {tab === "estadisticas" && <StatsPanel datasetId={id} columns={columnas} filter={filter} />}
     </div>
   )
