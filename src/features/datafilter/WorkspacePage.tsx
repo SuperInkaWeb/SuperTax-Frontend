@@ -1,62 +1,48 @@
 import { useQuery } from "@tanstack/react-query"
-import { AlertTriangle, Database } from "lucide-react"
+import { AlertTriangle, BarChart3, Calculator, Copy, Database, Replace, Table2, TableProperties } from "lucide-react"
 import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { toast } from "sonner"
 
-import { downloadDataset, getDataset, previewDataset } from "@/features/datafilter/api"
-import { DownloadBar } from "@/features/datafilter/components/DownloadBar"
+import { getDataset } from "@/features/datafilter/api"
+import { AnalysisTabs } from "@/features/datafilter/components/AnalysisTabs"
 import { FilterPanel } from "@/features/datafilter/components/FilterPanel"
-import { PreviewTable } from "@/features/datafilter/components/PreviewTable"
 import { formatRows } from "@/features/datafilter/lib"
-import { apiError } from "@/shared/lib/api/error"
-import { Button, buttonVariants } from "@/shared/ui/button"
+import { ComputePanel } from "@/features/datafilter/panels/ComputePanel"
+import { DatosPanel } from "@/features/datafilter/panels/DatosPanel"
+import { DedupePanel } from "@/features/datafilter/panels/DedupePanel"
+import { PivotPanel } from "@/features/datafilter/panels/PivotPanel"
+import { ReplacePanel } from "@/features/datafilter/panels/ReplacePanel"
+import { StatsPanel } from "@/features/datafilter/panels/StatsPanel"
+import { buttonVariants } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { PageHeader } from "@/shared/ui/page-header"
 import { Spinner } from "@/shared/ui/spinner"
 
-import type { Delimiter, DownloadFormat, FilterGroup } from "@/features/datafilter/types"
+import type { ToolTab } from "@/features/datafilter/components/AnalysisTabs"
+import type { FilterGroup } from "@/features/datafilter/types"
 import type { Crumb } from "@/shared/ui/breadcrumbs"
 
-const PAGINA = 100
+const TABS: ToolTab[] = [
+  { id: "datos", label: "Datos", icon: TableProperties },
+  { id: "columnas", label: "Columnas calculadas", icon: Calculator },
+  { id: "reemplazar", label: "Reemplazar", icon: Replace },
+  { id: "duplicados", label: "Duplicados", icon: Copy },
+  { id: "pivote", label: "Pivote", icon: Table2 },
+  { id: "estadisticas", label: "Estadísticas", icon: BarChart3 },
+]
 
 export function WorkspacePage() {
   const { datasetId } = useParams()
   const id = Number(datasetId)
   const [filter, setFilter] = useState<FilterGroup | null>(null)
-  const [offset, setOffset] = useState(0)
-  const [descargando, setDescargando] = useState(false)
+  const [tab, setTab] = useState("datos")
 
   const detalle = useQuery({
     queryKey: ["datafilter", "dataset", id],
     queryFn: () => getDataset(id),
     enabled: Number.isFinite(id),
   })
-
-  const vista = useQuery({
-    queryKey: ["datafilter", "preview", id, filter, offset],
-    queryFn: () =>
-      previewDataset(id, { filter, select: [], sort: [], limit: PAGINA, offset }),
-    enabled: detalle.data?.status === "ready",
-  })
-
-  const breadcrumbs: Crumb[] = [
-    { label: "Inicio", to: "/dashboard" },
-    { label: "DataFilter", to: "/datafilter" },
-    { label: detalle.data?.original_filename ?? "Dataset" },
-  ]
-
-  async function descargar(format: DownloadFormat, delimiter: Delimiter | undefined) {
-    setDescargando(true)
-    try {
-      await downloadDataset(id, { filter, select: [], sort: [], format, delimiter })
-    } catch (e) {
-      toast.error(apiError(e, "No se pudo descargar"))
-    } finally {
-      setDescargando(false)
-    }
-  }
 
   if (detalle.isLoading) {
     return (
@@ -82,9 +68,11 @@ export function WorkspacePage() {
 
   const ds = detalle.data
   const columnas = ds.columns.map((c) => c.name)
-  const total = vista.data?.total_matched ?? 0
-  const desde = total === 0 ? 0 : offset + 1
-  const hasta = Math.min(offset + PAGINA, total)
+  const breadcrumbs: Crumb[] = [
+    { label: "Inicio", to: "/dashboard" },
+    { label: "DataFilter", to: "/datafilter" },
+    { label: ds.original_filename },
+  ]
 
   return (
     <div className="space-y-6">
@@ -96,62 +84,19 @@ export function WorkspacePage() {
       />
 
       <Card>
-        <CardContent className="space-y-4 pt-5">
-          <FilterPanel
-            columns={columnas}
-            onApply={(f) => {
-              setFilter(f)
-              setOffset(0)
-            }}
-          />
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-            <p className="text-sm text-muted-foreground">
-              {formatRows(total)} coincidencias
-            </p>
-            <DownloadBar onDownload={descargar} pending={descargando} />
-          </div>
+        <CardContent className="pt-5">
+          <FilterPanel columns={columnas} onApply={setFilter} />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-0">
-          {vista.isLoading ? (
-            <div className="flex justify-center py-10">
-              <Spinner />
-            </div>
-          ) : vista.isError ? (
-            <p className="p-4 text-sm text-destructive">
-              {apiError(vista.error, "No se pudo cargar la vista previa")}
-            </p>
-          ) : (
-            <PreviewTable columns={vista.data?.columns ?? []} rows={vista.data?.rows ?? []} />
-          )}
-        </CardContent>
-      </Card>
+      <AnalysisTabs tabs={TABS} active={tab} onChange={setTab} />
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {desde}–{hasta} de {formatRows(total)}
-        </p>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={offset === 0}
-            onClick={() => setOffset((o) => Math.max(0, o - PAGINA))}
-          >
-            Anterior
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={hasta >= total}
-            onClick={() => setOffset((o) => o + PAGINA)}
-          >
-            Siguiente
-          </Button>
-        </div>
-      </div>
+      {tab === "datos" && <DatosPanel datasetId={id} filter={filter} />}
+      {tab === "columnas" && <ComputePanel datasetId={id} columns={columnas} filter={filter} />}
+      {tab === "reemplazar" && <ReplacePanel datasetId={id} columns={columnas} filter={filter} />}
+      {tab === "duplicados" && <DedupePanel datasetId={id} columns={columnas} filter={filter} />}
+      {tab === "pivote" && <PivotPanel datasetId={id} columns={columnas} filter={filter} />}
+      {tab === "estadisticas" && <StatsPanel datasetId={id} columns={columnas} filter={filter} />}
     </div>
   )
 }
