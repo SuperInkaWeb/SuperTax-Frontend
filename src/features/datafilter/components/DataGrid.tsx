@@ -47,10 +47,12 @@ interface DataGridProps {
   sort: SortSpec | null
   search: string
   onSort: (column: string) => void
+  /** Reporta al padre el total de coincidencias (para el chip de filtro activo). */
+  onTotal?: (total: number | null) => void
 }
 
 /** Grilla virtualizada con selección de celdas (recuento/suma/promedio tipo Excel). */
-export function DataGrid({ datasetId, filter, sort, search, onSort }: DataGridProps) {
+export function DataGrid({ datasetId, filter, sort, search, onSort, onTotal }: DataGridProps) {
   const [bloque, setBloque] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [anchor, setAnchor] = useState<Cell | null>(null)
@@ -71,6 +73,10 @@ export function DataGrid({ datasetId, filter, sort, search, onSort }: DataGridPr
   useEffect(() => {
     if (items.length > 0) ensureRange(items[0].index, items[items.length - 1].index)
   }, [items, ensureRange])
+
+  useEffect(() => {
+    onTotal?.(total)
+  }, [total, onTotal])
 
   // Al cambiar filtro/orden/búsqueda/bloque: vuelve arriba y limpia la selección.
   const resetKey = `${datasetId}|${JSON.stringify(filter)}|${sort?.column ?? ""}:${sort?.direction ?? ""}|${search}|${bloque}`
@@ -137,10 +143,10 @@ export function DataGrid({ datasetId, filter, sort, search, onSort }: DataGridPr
   const anchoTabla = columns.length * COL_WIDTH
 
   return (
-    <div className="space-y-2">
+    <div className="flex h-full min-h-0 flex-col gap-2">
       <div
         ref={scrollRef}
-        className="relative h-[32rem] overflow-auto rounded-lg border"
+        className="relative min-h-0 flex-1 overflow-auto rounded-lg border"
         style={{ contain: "strict" }}
       >
         <div style={{ width: anchoTabla, minWidth: "100%" }}>
