@@ -27,6 +27,7 @@ const MODULOS = [
   { key: "sunat", label: "Descarga SUNAT" },
   { key: "scanner", label: "Escaneo" },
   { key: "datafilter", label: "DataFilter" },
+  { key: "correos", label: "Automatización de correos" },
 ]
 
 function ModulosEmpresa({ company, onClose }: { company: Company; onClose: () => void }) {

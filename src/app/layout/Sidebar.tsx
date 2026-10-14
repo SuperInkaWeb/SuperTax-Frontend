@@ -5,6 +5,7 @@ import {
   Landmark,
   LayoutDashboard,
   LifeBuoy,
+  Mail,
   ScanLine,
   Settings,
 } from "lucide-react"
@@ -56,6 +57,12 @@ function useNavItems(): NavItem[] {
       label: "DataFilter",
       icon: Database,
       visible: modulos.includes("datafilter"),
+    },
+    {
+      to: "/correos",
+      label: "Correos",
+      icon: Mail,
+      visible: modulos.includes("correos"),
     },
     {
       to: "/soporte",
