@@ -1,11 +1,11 @@
 import { Route, Routes } from "react-router-dom"
 
 import { NotFoundPage } from "@/app/NotFoundPage"
-import { AuditoriaPage } from "@/features/correos/AuditoriaPage"
 import { BuzonesPage } from "@/features/correos/BuzonesPage"
 import { CorreosLayout } from "@/features/correos/CorreosLayout"
 import { EscaneosPage } from "@/features/correos/EscaneosPage"
 import { OAuthCallbackPage } from "@/features/correos/OAuthCallbackPage"
+import { RegistrosPage } from "@/features/correos/RegistrosPage"
 import { RevisionPage } from "@/features/correos/RevisionPage"
 
 export function CorreosRoutes() {
@@ -17,7 +17,7 @@ export function CorreosRoutes() {
         <Route index element={<BuzonesPage />} />
         <Route path="escaneos" element={<EscaneosPage />} />
         <Route path="revision" element={<RevisionPage />} />
-        <Route path="auditoria" element={<AuditoriaPage />} />
+        <Route path="registros" element={<RegistrosPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

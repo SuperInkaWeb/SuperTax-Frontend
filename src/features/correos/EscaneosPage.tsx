@@ -1,36 +1,34 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Mail, Play, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import {
   cancelScan,
   createScan,
+  getScan,
   listMailboxes,
   listScans,
-  scanErrors,
+  resetData,
   type ScanRequest,
   type ScanSummary,
 } from "@/features/correos/api"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
-import { Badge } from "@/shared/ui/badge"
+import { Badge, type Tone } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import { Card, CardContent } from "@/shared/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
-import { PageHeader } from "@/shared/ui/page-header"
 import { Select } from "@/shared/ui/select"
 import { Spinner } from "@/shared/ui/spinner"
-
-import type { Tone } from "@/shared/ui/badge"
+import { Mail } from "lucide-react"
 
 const ESTADO: Record<string, { label: string; tone: Tone }> = {
   queued: { label: "En cola", tone: "neutral" },
-  running: { label: "Procesando", tone: "info" },
+  running: { label: "En curso", tone: "info" },
   completed: { label: "Completado", tone: "success" },
-  failed: { label: "Error", tone: "danger" },
+  failed: { label: "Fallido", tone: "danger" },
   cancelled: { label: "Cancelado", tone: "neutral" },
 }
 
@@ -47,6 +45,7 @@ const activo = (s: ScanSummary) => s.status === "queued" || s.status === "runnin
 export function EscaneosPage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const queryClient = useQueryClient()
+  const [enCurso, setEnCurso] = useState<number | null>(null)
 
   const buzones = useQuery({
     queryKey: ["correos", "mailboxes"],
@@ -57,14 +56,19 @@ export function EscaneosPage() {
     queryKey: ["correos", "scans"],
     queryFn: listScans,
     enabled: companyId != null,
-    // Mientras haya escaneos en curso, se refresca para ver el progreso.
     refetchInterval: (q) => (q.state.data?.some(activo) ? 2000 : false),
+  })
+  const seguido = useQuery({
+    queryKey: ["correos", "scan", enCurso],
+    queryFn: () => getScan(enCurso as number),
+    enabled: enCurso != null,
+    refetchInterval: (q) => (q.state.data && activo(q.state.data) ? 2000 : false),
   })
 
   const lanzar = useMutation({
     mutationFn: createScan,
-    onSuccess: () => {
-      toast.success("Escaneo iniciado")
+    onSuccess: (job) => {
+      setEnCurso(job.id)
       queryClient.invalidateQueries({ queryKey: ["correos", "scans"] })
     },
     onError: (err) => toast.error(apiError(err, "No se pudo iniciar el escaneo")),
@@ -76,201 +80,306 @@ export function EscaneosPage() {
     onError: (err) => toast.error(apiError(err, "No se pudo cancelar")),
   })
 
-  const hayBuzones = (buzones.data?.length ?? 0) > 0
+  const conexionesActivas = buzones.data?.filter((b) => b.status === "active") ?? []
+
+  if (buzones.isLoading) {
+    return (
+      <div className="flex justify-center py-10">
+        <Spinner />
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Escaneos"
-        description="Descarga los adjuntos del buzón en un rango de fechas y extrae sus datos."
-      />
-
-      {hayBuzones ? (
-        <LanzarForm
-          buzones={buzones.data ?? []}
-          onSubmit={(body) => lanzar.mutate(body)}
-          enviando={lanzar.isPending}
-        />
-      ) : (
-        <EmptyState
-          icon={Mail}
-          title="Conecta un buzón primero"
-          description="Ve a la pestaña Buzones y conecta Gmail u Outlook para poder escanear."
-        />
-      )}
-
-      {escaneos.isLoading ? (
-        <div className="flex justify-center py-10">
-          <Spinner />
-        </div>
-      ) : (escaneos.data?.length ?? 0) > 0 ? (
-        <div className="space-y-2">
-          {escaneos.data!.map((scan) => (
-            <ScanCard
-              key={scan.id}
-              scan={scan}
-              onCancel={() => cancelar.mutate(scan.id)}
-              cancelando={cancelar.isPending}
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Nuevo escaneo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {conexionesActivas.length === 0 ? (
+            <EmptyState
+              icon={Mail}
+              title="No hay ningún buzón conectado"
+              description="Vincula una cuenta de Gmail o de Outlook para poder escanear."
             />
-          ))}
-        </div>
-      ) : null}
+          ) : (
+            <div className="flex flex-col gap-6">
+              <FormularioDeEscaneo
+                conexiones={conexionesActivas}
+                enviando={lanzar.isPending}
+                onLanzar={(body) => lanzar.mutate(body)}
+              />
+              {seguido.data && <ProgresoEnVivo scan={seguido.data} />}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Historial</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {escaneos.isLoading ? (
+            <div className="flex justify-center py-6">
+              <Spinner />
+            </div>
+          ) : (escaneos.data?.length ?? 0) === 0 ? (
+            <EmptyState
+              icon={Mail}
+              title="Todavía no se ha lanzado ningún escaneo"
+              description="Al terminar el primero, aquí aparecerá su resultado."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="px-2 py-2">Estado</th>
+                    <th className="px-2 py-2">Fase</th>
+                    <th className="px-2 py-2">Correos</th>
+                    <th className="px-2 py-2">Adjuntos</th>
+                    <th className="px-2 py-2">Registros</th>
+                    <th className="px-2 py-2">Errores</th>
+                    <th className="px-2 py-2">Encolado</th>
+                    <th className="px-2 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {escaneos.data!.map((scan) => (
+                    <FilaDeEscaneo
+                      key={scan.id}
+                      scan={scan}
+                      onSeguir={() => setEnCurso(scan.id)}
+                      onCancelar={() => cancelar.mutate(scan.id)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ZonaDePeligro
+        onReiniciado={() => {
+          queryClient.invalidateQueries({ queryKey: ["correos", "scans"] })
+          queryClient.invalidateQueries({ queryKey: ["correos", "records"] })
+          queryClient.invalidateQueries({ queryKey: ["correos", "review-count"] })
+          setEnCurso(null)
+        }}
+      />
     </div>
   )
 }
 
-function LanzarForm({
-  buzones,
-  onSubmit,
+function FormularioDeEscaneo({
+  conexiones,
+  onLanzar,
   enviando,
 }: {
-  buzones: { id: number; account_email: string; provider: string }[]
-  onSubmit: (body: ScanRequest) => void
+  conexiones: { id: number; account_email: string; provider: string }[]
+  onLanzar: (body: ScanRequest) => void
   enviando: boolean
 }) {
-  const [connectionId, setConnectionId] = useState<number>(buzones[0]?.id ?? 0)
+  const [buzonId, setBuzonId] = useState(conexiones[0]?.id ?? 0)
+  const [carpeta, setCarpeta] = useState("INBOX")
   const [desde, setDesde] = useState("")
   const [hasta, setHasta] = useState("")
   const [limite, setLimite] = useState(100)
 
   return (
-    <Card>
-      <CardContent className="grid gap-4 py-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="buzon">Buzón</Label>
-          <Select
-            id="buzon"
-            value={connectionId}
-            onChange={(e) => setConnectionId(Number(e.target.value))}
-          >
-            {buzones.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.account_email || b.provider}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="desde">Desde</Label>
-          <Input id="desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="hasta">Hasta</Label>
-          <Input id="hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="limite">Máx. correos</Label>
-          <Input
-            id="limite"
-            type="number"
-            min={1}
-            max={50000}
-            value={limite}
-            onChange={(e) => setLimite(Number(e.target.value))}
-          />
-        </div>
-        <div className="sm:col-span-2 lg:col-span-4">
-          <Button
-            disabled={enviando || !connectionId}
-            onClick={() =>
-              onSubmit({
-                connection_id: connectionId,
-                desde: desde || null,
-                hasta: hasta || null,
-                limite_de_mensajes: limite,
-              })
-            }
-          >
-            <Play className="size-4" />
-            Iniciar escaneo
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        onLanzar({
+          connection_id: buzonId,
+          carpeta: carpeta.trim() || "INBOX",
+          limite_de_mensajes: limite,
+          desde: desde || null,
+          hasta: hasta || null,
+        })
+      }}
+      className="flex flex-col gap-4"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo label="Buzón">
+          {conexiones.length > 1 ? (
+            <Select value={buzonId} onChange={(e) => setBuzonId(Number(e.target.value))}>
+              {conexiones.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.account_email || b.provider}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <p className="py-2 text-muted-foreground">
+              {conexiones[0]?.account_email || conexiones[0]?.provider || "—"}
+            </p>
+          )}
+        </Campo>
+        <Campo label="Carpeta">
+          <Input value={carpeta} onChange={(e) => setCarpeta(e.target.value)} maxLength={120} />
+        </Campo>
+        <Campo label="Desde (opcional)">
+          <Input type="date" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} />
+        </Campo>
+        <Campo label="Hasta (opcional)">
+          <Input type="date" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} />
+        </Campo>
+        <Campo label="Máx. de correos">
+          <Input type="number" min={1} max={50000} value={limite} onChange={(e) => setLimite(Number(e.target.value))} />
+        </Campo>
+      </div>
+      <Button type="submit" disabled={enviando || !buzonId}>
+        Iniciar escaneo
+      </Button>
+    </form>
   )
 }
 
-function ScanCard({
+function ProgresoEnVivo({ scan }: { scan: ScanSummary }) {
+  const c = scan.counters ?? {}
+  return (
+    <div className="flex flex-col gap-3 rounded-md border p-4">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span>{FASE[scan.phase] ?? scan.phase}</span>
+        <span className="text-muted-foreground">{scan.progress_pct}%</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+        <div className="h-full bg-primary transition-all" style={{ width: `${scan.progress_pct}%` }} />
+      </div>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-5">
+        <Contador label="Correos" valor={c.mensajes_revisados} />
+        <Contador label="Adjuntos" valor={c.adjuntos_descargados} />
+        <Contador label="Duplicados" valor={c.adjuntos_duplicados} />
+        <Contador label="Descartados" valor={c.adjuntos_rechazados} />
+        <Contador label="Registros" valor={c.registros_extraidos} />
+      </dl>
+      {scan.status === "failed" && scan.error_message && (
+        <p className="text-sm text-destructive">{scan.error_message}</p>
+      )}
+    </div>
+  )
+}
+
+function Contador({ label, valor }: { label: string; valor?: number }) {
+  return (
+    <div className="flex justify-between gap-2 sm:flex-col sm:gap-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-medium tabular-nums">{valor ?? 0}</dd>
+    </div>
+  )
+}
+
+function FilaDeEscaneo({
   scan,
-  onCancel,
-  cancelando,
+  onSeguir,
+  onCancelar,
 }: {
   scan: ScanSummary
-  onCancel: () => void
-  cancelando: boolean
+  onSeguir: () => void
+  onCancelar: () => void
 }) {
   const estado = ESTADO[scan.status] ?? { label: scan.status, tone: "neutral" as Tone }
   const c = scan.counters ?? {}
   return (
-    <Card>
-      <CardContent className="space-y-3 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Escaneo #{scan.id}</span>
-            <Badge tone={estado.tone}>{estado.label}</Badge>
-            {activo(scan) && (
-              <span className="text-xs text-muted-foreground">{FASE[scan.phase] ?? scan.phase}</span>
-            )}
-          </div>
-          {activo(scan) && (
-            <Button variant="ghost" size="sm" onClick={onCancel} disabled={cancelando}>
-              <X className="size-4" />
+    <tr className="border-b last:border-0">
+      <td className="px-2 py-2">
+        <Badge tone={estado.tone}>{estado.label}</Badge>
+      </td>
+      <td className="px-2 py-2">{FASE[scan.phase] ?? scan.phase}</td>
+      <td className="px-2 py-2 tabular-nums">{c.mensajes_revisados ?? 0}</td>
+      <td className="px-2 py-2 tabular-nums">{c.adjuntos_descargados ?? 0}</td>
+      <td className="px-2 py-2 tabular-nums">{c.registros_extraidos ?? 0}</td>
+      <td className="px-2 py-2 tabular-nums">{(c.errores ?? 0) + (c.errores_extraccion ?? 0)}</td>
+      <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
+        {new Date(scan.queued_at).toLocaleString()}
+      </td>
+      <td className="px-2 py-2">
+        {activo(scan) ? (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onSeguir}>
+              Seguir
+            </Button>
+            <Button variant="destructive" size="sm" onClick={onCancelar}>
               Cancelar
             </Button>
-          )}
-        </div>
+          </div>
+        ) : null}
+      </td>
+    </tr>
+  )
+}
 
-        {activo(scan) && (
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-            <div
-              className="h-full bg-primary transition-all"
-              style={{ width: `${scan.progress_pct}%` }}
-            />
+const PALABRA = "REINICIAR"
+
+function ZonaDePeligro({ onReiniciado }: { onReiniciado: () => void }) {
+  const [abierto, setAbierto] = useState(false)
+  const [texto, setTexto] = useState("")
+
+  const reiniciar = useMutation({
+    mutationFn: resetData,
+    onSuccess: (r) => {
+      toast.success(`Listo. Se borraron ${r.registros} registros, ${r.adjuntos} adjuntos y ${r.mensajes} correos.`)
+      setAbierto(false)
+      setTexto("")
+      onReiniciado()
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudo reiniciar")),
+  })
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Reiniciar datos de escaneo</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Borra todos los registros, adjuntos y correos para escanear desde cero. Tus buzones
+          conectados se conservan. Esta acción no se puede deshacer.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {!abierto ? (
+          <Button variant="destructive" onClick={() => setAbierto(true)}>
+            Reiniciar datos de escaneo
+          </Button>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <Label>
+              Para confirmar, escribe <strong>{PALABRA}</strong>
+            </Label>
+            <Input value={texto} onChange={(e) => setTexto(e.target.value)} className="w-48" autoComplete="off" />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="destructive"
+                disabled={texto !== PALABRA || reiniciar.isPending}
+                onClick={() => reiniciar.mutate()}
+              >
+                Sí, borrar todo
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setAbierto(false)
+                  setTexto("")
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
           </div>
         )}
-
-        {scan.status === "failed" && scan.error_message && (
-          <p className="text-sm text-destructive">{scan.error_message}</p>
-        )}
-
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span>Adjuntos: {c.adjuntos_descargados ?? 0}</span>
-          <span>Registros: {c.registros_extraidos ?? 0}</span>
-          <span>En revisión: {c.registros_en_revision ?? 0}</span>
-          <span>Sin datos: {c.adjuntos_sin_datos ?? 0}</span>
-        </div>
-
-        {(c.errores ?? 0) + (c.errores_extraccion ?? 0) > 0 && <ScanErrores scanId={scan.id} />}
       </CardContent>
     </Card>
   )
 }
 
-function ScanErrores({ scanId }: { scanId: number }) {
-  const [abierto, setAbierto] = useState(false)
-  const { data } = useQuery({
-    queryKey: ["correos", "scan-errors", scanId],
-    queryFn: () => scanErrors(scanId),
-    enabled: abierto,
-  })
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="text-xs">
-      <button
-        type="button"
-        className="text-destructive underline"
-        onClick={() => setAbierto((v) => !v)}
-      >
-        {abierto ? "Ocultar errores" : "Ver errores"}
-      </button>
-      {abierto && data && (
-        <ul className="mt-1 space-y-0.5 text-muted-foreground">
-          {data.map((e, i) => (
-            <li key={i}>
-              <span className="font-medium">{e.stage}</span>: {e.message}
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      {children}
     </div>
   )
 }

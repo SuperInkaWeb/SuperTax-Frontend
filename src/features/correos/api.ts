@@ -8,6 +8,7 @@ export interface MailboxSummary {
   provider: MailboxProvider
   account_email: string
   status: string
+  expires_at: string | null
   created_at: string
 }
 
@@ -198,43 +199,32 @@ export async function getDocumentUrl(id: number): Promise<string> {
   return URL.createObjectURL(resp.data as Blob)
 }
 
-/** Descarga el reporte Excel con los filtros dados (mismos que el listado). */
-export async function exportRecords(filters: RecordFilters = {}): Promise<void> {
+export type FormatoReporte = "xlsx" | "csv"
+
+export interface ExportOptions extends RecordFilters {
+  formato?: FormatoReporte
+  /** Exportar solo estos registros (selección del usuario); si se omite, todo lo filtrado. */
+  ids?: number[]
+}
+
+/** Descarga el reporte (Excel o CSV) por selección o por filtros. */
+export async function exportRecords(opts: ExportOptions = {}): Promise<void> {
+  const { formato = "xlsx", ids, ...filters } = opts
   const resp = await api.get("/api/correos/records/export", {
-    params: filters,
+    params: { ...filters, formato, ...(ids && ids.length ? { ids: ids.join(",") } : {}) },
     responseType: "blob",
   })
   const url = URL.createObjectURL(resp.data as Blob)
   const a = document.createElement("a")
   a.href = url
   const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, "")
-  a.download = `reporte-correos-${hoy}.xlsx`
+  a.download = `reporte-correos-${hoy}.${formato}`
   a.click()
   URL.revokeObjectURL(url)
 }
 
-// ─────────────────────────── Auditoría ───────────────────────────
-export interface AuditEntry {
-  id: number
-  actor_id: number | null
-  actor_ip: string | null
-  action: string
-  resource_type: string
-  resource_id: string | null
-  metadata: Record<string, unknown>
-  occurred_at: string
-}
-
-export interface AuditListResponse {
-  items: AuditEntry[]
-  total: number
-  limit: number
-  offset: number
-}
-
-export async function listAudit(limit = 50, offset = 0): Promise<AuditListResponse> {
-  const { data } = await api.get<AuditListResponse>("/api/correos/audit", {
-    params: { limit, offset },
-  })
+/** Reinicia (borra) todos los datos de escaneo de la empresa; conserva los buzones. */
+export async function resetData(): Promise<{ registros: number; adjuntos: number; mensajes: number }> {
+  const { data } = await api.post("/api/correos/scans/reset")
   return data
 }
