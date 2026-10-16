@@ -5,6 +5,7 @@ import { reviewQueue, type RecordSummary } from "@/features/correos/api"
 import { FormularioDeCorreccion } from "@/features/correos/FormularioDeCorreccion"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { Badge } from "@/shared/ui/badge"
+import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { PageHeader } from "@/shared/ui/page-header"
@@ -38,6 +39,17 @@ export function RevisionPage() {
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
+      ) : cola.isError ? (
+        <EmptyState
+          icon={ClipboardCheck}
+          title="No se pudo cargar la cola"
+          description="Hubo un error al consultar los registros pendientes."
+          action={
+            <Button variant="outline" onClick={() => void cola.refetch()}>
+              Reintentar
+            </Button>
+          }
+        />
       ) : registros.length === 0 ? (
         <EmptyState
           icon={ClipboardCheck}

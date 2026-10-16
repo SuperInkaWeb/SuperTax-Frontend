@@ -192,6 +192,17 @@ export function RegistrosPage() {
             <div className="flex justify-center py-10">
               <Spinner />
             </div>
+          ) : registros.isError ? (
+            <EmptyState
+              icon={TableIcon}
+              title="No se pudieron cargar los registros"
+              description="Hubo un error al consultar. Intenta de nuevo."
+              action={
+                <Button variant="outline" onClick={() => void registros.refetch()}>
+                  Reintentar
+                </Button>
+              }
+            />
           ) : filas.length === 0 ? (
             <EmptyState
               icon={TableIcon}
