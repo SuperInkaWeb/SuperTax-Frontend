@@ -30,6 +30,12 @@ export function Auth0ProviderWithNavigate({ children }: { children: ReactNode })
       useRefreshTokens
       cacheLocation="localstorage"
       onRedirectCallback={alVolverDeAuth0}
+      // La vuelta de OAuth de un buzón (Gmail/Outlook) llega a esta ruta con sus
+      // propios `?code&state`. Sin esto, el SDK de Auth0 los confundiría con SU
+      // callback de login, fallaría al canjearlos y terminaría en /login. Se le
+      // indica que ignore el callback ahí: la sesión se restaura de localStorage y
+      // OAuthCallbackPage completa la vinculación del buzón.
+      skipRedirectCallback={window.location.pathname === "/correos/oauth/callback"}
     >
       {children}
     </Auth0Provider>
