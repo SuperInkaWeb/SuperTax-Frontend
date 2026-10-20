@@ -17,7 +17,7 @@ import { toast } from "sonner"
 import { descargarCsv, descargarReporte, getJob, resumeJob } from "@/features/sire/api"
 import { apiError } from "@/shared/lib/api/error"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
-import { Badge } from "@/shared/ui/badge"
+import { StatusBadge } from "@/features/sire/StatusBadge"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Separator } from "@/shared/ui/separator"
@@ -178,10 +178,7 @@ export function JobDetailPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <InfoCard label="Estado">
-          {job.status === "completado" && <Badge tone="success">Completado</Badge>}
-          {job.status === "error" && <Badge tone="danger">Error</Badge>}
-          {job.status === "en_cola" && <Badge>En cola</Badge>}
-          {job.status === "procesando" && <Badge tone="info">Procesando</Badge>}
+          <StatusBadge status={job.status} />
         </InfoCard>
         <InfoCard label="Periodo">
           <p className="font-mono font-semibold">

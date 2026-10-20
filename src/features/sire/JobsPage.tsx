@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertTriangle, Download, Eye, Inbox, Plus, RotateCcw } from "lucide-react"
+import { Download, Eye, Inbox, Plus, RotateCcw } from "lucide-react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
@@ -7,23 +7,25 @@ import { descargarReporte, listJobs, resumeJob } from "@/features/sire/api"
 import { StatusBadge } from "@/features/sire/StatusBadge"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Button, buttonVariants } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
+import { DataTable } from "@/shared/ui/data-table"
 import { EmptyState } from "@/shared/ui/empty-state"
-import { Spinner } from "@/shared/ui/spinner"
+
+import type { ReconciliationJob } from "@/shared/types"
+import type { ColumnDef } from "@tanstack/react-table"
 
 export function JobsPage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const queryClient = useQueryClient()
 
-  const { data, isLoading, isError } = useQuery({
+  const jobs = useQuery({
     queryKey: ["sire", "jobs", companyId],
     queryFn: listJobs,
     enabled: companyId != null,
     refetchInterval: (query) =>
-      query.state.data?.some((j) => j.status === "en_cola" || j.status === "procesando")
-        ? 5000
-        : false,
+      query.state.data?.some((j) => j.status === "en_cola" || j.status === "procesando") ? 5000 : false,
   })
 
   const resume = useMutation({
@@ -40,32 +42,41 @@ export function JobsPage() {
     onError: (err) => toast.error(apiError(err, "No se pudo descargar")),
   })
 
-  const sorted = data ? [...data].sort((a, b) => b.id - a.id) : []
+  const columnas: ColumnDef<ReconciliationJob>[] = [
+    { header: "#", cell: ({ row }) => <span className="font-mono text-xs">#{row.original.id}</span> },
+    { header: "Periodo", cell: ({ row }) => <span className="font-medium">{row.original.periodo.slice(0, 4)}/{row.original.periodo.slice(4)}</span> },
+    { header: "Libro", cell: ({ row }) => <span className="capitalize">{row.original.tipo_libro}</span> },
+    { header: "Archivo", cell: ({ row }) => <span className="block max-w-[180px] truncate text-xs text-muted-foreground">{row.original.empresa_filename ?? "—"}</span> },
+    { header: "Estado", cell: ({ row }) => <StatusBadge status={row.original.status} /> },
+    { header: "Creado", cell: ({ row }) => <span className="text-muted-foreground">{new Date(row.original.created_at).toLocaleDateString("es-PE")}</span> },
+    {
+      header: "",
+      id: "acciones",
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Link to={`/sire/jobs/${row.original.id}`} className={buttonVariants({ variant: "ghost", size: "icon" })} aria-label="Ver detalle">
+            <Eye className="size-4" />
+          </Link>
+          {row.original.has_report ? (
+            <Button size="icon" variant="ghost" aria-label="Descargar reporte" onClick={() => bajarReporte.mutate(row.original.id)}>
+              <Download className="size-4" />
+            </Button>
+          ) : null}
+          {row.original.status === "error" ? (
+            <Button size="icon" variant="ghost" aria-label="Reanudar" onClick={() => resume.mutate(row.original.id)}>
+              <RotateCcw className="size-4" />
+            </Button>
+          ) : null}
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div className="space-y-4">
-      {sorted.length > 0 && (
-        <div className="flex justify-end">
-          <Link to="/sire/nueva" className={buttonVariants()}>
-            <Plus className="size-4" />
-            Nueva conciliación
-          </Link>
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="flex justify-center py-10">
-          <Spinner />
-        </div>
-      )}
-      {isError && (
-        <EmptyState
-          icon={AlertTriangle}
-          title="No se pudieron cargar las conciliaciones"
-          description="Revisa tu conexión y vuelve a intentarlo en unos segundos."
-        />
-      )}
-      {data && data.length === 0 && (
+    <AsyncBoundary
+      query={jobs}
+      isEmpty={(d) => d.length === 0}
+      empty={
         <EmptyState
           icon={Inbox}
           title="Aún no hay conciliaciones"
@@ -77,78 +88,26 @@ export function JobsPage() {
             </Link>
           }
         />
-      )}
-
-      {sorted.length > 0 && (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
-              <thead className="border-b text-left text-muted-foreground">
-                <tr>
-                  <th className="p-3">#</th>
-                  <th className="p-3">Periodo</th>
-                  <th className="p-3">Libro</th>
-                  <th className="p-3">Archivo</th>
-                  <th className="p-3">Estado</th>
-                  <th className="p-3">Creado</th>
-                  <th className="p-3 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((job) => (
-                  <tr key={job.id} className="border-b transition-colors last:border-0 hover:bg-muted/50">
-                    <td className="p-3 font-mono text-xs">#{job.id}</td>
-                    <td className="p-3 font-medium">
-                      {job.periodo.slice(0, 4)}/{job.periodo.slice(4)}
-                    </td>
-                    <td className="p-3 capitalize">{job.tipo_libro}</td>
-                    <td className="max-w-[180px] truncate p-3 text-xs text-muted-foreground">
-                      {job.empresa_filename ?? "—"}
-                    </td>
-                    <td className="p-3">
-                      <StatusBadge status={job.status} />
-                    </td>
-                    <td className="p-3 text-muted-foreground">
-                      {new Date(job.created_at).toLocaleDateString("es-PE")}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex justify-end gap-1">
-                        <Link
-                          to={`/sire/jobs/${job.id}`}
-                          className={buttonVariants({ variant: "ghost", size: "icon" })}
-                          aria-label="Ver detalle"
-                        >
-                          <Eye className="size-4" />
-                        </Link>
-                        {job.has_report && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label="Descargar reporte"
-                            onClick={() => bajarReporte.mutate(job.id)}
-                          >
-                            <Download className="size-4" />
-                          </Button>
-                        )}
-                        {job.status === "error" && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label="Reanudar"
-                            onClick={() => resume.mutate(job.id)}
-                          >
-                            <RotateCcw className="size-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+      }
+    >
+      {(data) => {
+        const sorted = [...data].sort((a, b) => b.id - a.id)
+        return (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Link to="/sire/nueva" className={buttonVariants()}>
+                <Plus className="size-4" />
+                Nueva conciliación
+              </Link>
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <DataTable columns={columnas} data={sorted} getRowId={(j) => String(j.id)} />
+              </CardContent>
+            </Card>
+          </div>
+        )
+      }}
+    </AsyncBoundary>
   )
 }
