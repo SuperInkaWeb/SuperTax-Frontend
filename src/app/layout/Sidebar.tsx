@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Mail,
+  Plug,
   ScanLine,
   Settings,
 } from "lucide-react"
@@ -63,6 +64,12 @@ function useNavItems(): NavItem[] {
       label: "Correos",
       icon: Mail,
       visible: modulos.includes("correos"),
+    },
+    {
+      to: "/conexiones",
+      label: "Conexiones",
+      icon: Plug,
+      visible: companyId != null,
     },
     {
       to: "/soporte",

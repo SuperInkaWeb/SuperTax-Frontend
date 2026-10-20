@@ -30,6 +30,9 @@ const DatafilterRoutes = lazy(() =>
 const CorreosRoutes = lazy(() =>
   import("@/features/correos/CorreosRoutes").then((m) => ({ default: m.CorreosRoutes })),
 )
+const ConexionesPage = lazy(() =>
+  import("@/features/conexiones/ConexionesPage").then((m) => ({ default: m.ConexionesPage })),
+)
 const AdminRoutes = lazy(() =>
   import("@/features/admin/AdminRoutes").then((m) => ({ default: m.AdminRoutes })),
 )
@@ -73,6 +76,7 @@ export function App() {
             <Route path="/scanner/*" element={<ScannerRoutes />} />
             <Route path="/datafilter/*" element={<DatafilterRoutes />} />
             <Route path="/correos/*" element={<CorreosRoutes />} />
+            <Route path="/conexiones" element={<ConexionesPage />} />
             <Route path="/soporte" element={<TicketsPage />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
             <Route path="*" element={<NotFoundPage />} />
