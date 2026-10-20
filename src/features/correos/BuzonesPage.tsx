@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Inbox } from "lucide-react"
+import { Inbox, Unplug } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -147,6 +147,7 @@ function FilaDeBuzon({
       <div className="flex items-center gap-3">
         <StatusBadge value={conexion.status} map={ESTADO_BUZON} />
         <Button variant="destructive" size="sm" disabled={ocupado} onClick={onDesvincular}>
+          <Unplug className="size-4" />
           Desvincular
         </Button>
       </div>

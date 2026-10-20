@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query"
+import { Check, FileText, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -118,12 +119,15 @@ export function FormularioDeCorreccion({
           disabled={documento.cargando}
           onClick={() => void documento.abrir(registro.id)}
         >
+          <FileText className="size-4" />
           {documento.error ? "Reintentar" : "Ver documento"}
         </Button>
         <Button type="submit" disabled={ocupado}>
+          <Check className="size-4" />
           {hayCambios ? "Guardar y aprobar" : "Aprobar sin cambios"}
         </Button>
         <Button type="button" variant="destructive" disabled={ocupado} onClick={() => rechazar.mutate()}>
+          <X className="size-4" />
           Rechazar
         </Button>
       </div>

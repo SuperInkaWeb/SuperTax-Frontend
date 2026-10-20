@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Mail } from "lucide-react"
+import { Eye, Mail, Play, Trash2, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -95,9 +95,11 @@ export function EscaneosPage() {
         activo(row.original) ? (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setEnCurso(row.original.id)}>
+              <Eye className="size-4" />
               Seguir
             </Button>
             <Button variant="destructive" size="sm" onClick={() => cancelar.mutate(row.original.id)}>
+              <X className="size-4" />
               Cancelar
             </Button>
           </div>
@@ -236,6 +238,7 @@ function FormularioDeEscaneo({
         </FormField>
       </div>
       <Button type="submit" disabled={enviando}>
+        <Play className="size-4" />
         Iniciar escaneo
       </Button>
     </form>
@@ -305,6 +308,7 @@ function ZonaDePeligro({ onReiniciado }: { onReiniciado: () => void }) {
       <CardContent>
         {!abierto ? (
           <Button variant="destructive" onClick={() => setAbierto(true)}>
+            <Trash2 className="size-4" />
             Reiniciar datos de escaneo
           </Button>
         ) : (
@@ -315,6 +319,7 @@ function ZonaDePeligro({ onReiniciado }: { onReiniciado: () => void }) {
             <Input value={texto} onChange={(e) => setTexto(e.target.value)} className="w-48" autoComplete="off" />
             <div className="flex flex-wrap gap-2">
               <Button variant="destructive" disabled={texto !== PALABRA || reiniciar.isPending} onClick={() => reiniciar.mutate()}>
+                <Trash2 className="size-4" />
                 Sí, borrar todo
               </Button>
               <Button variant="ghost" onClick={() => { setAbierto(false); setTexto("") }}>
