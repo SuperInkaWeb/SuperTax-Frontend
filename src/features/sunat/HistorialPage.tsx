@@ -1,76 +1,56 @@
 import { useQuery } from "@tanstack/react-query"
-import { AlertTriangle, Inbox } from "lucide-react"
+import { Inbox } from "lucide-react"
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
-import { descargarReporte, getJobResult, listJobs } from "@/features/sunat/api"
+import {
+  descargarReporte,
+  getJobResult,
+  listJobs,
+  type ResultadoComprobante,
+  type SunatJobItem,
+} from "@/features/sunat/api"
+import { ESTADO_JOB, toneComprobante } from "@/features/sunat/estados"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Badge } from "@/shared/ui/badge"
 import { Button, buttonVariants } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
+import { DataTable } from "@/shared/ui/data-table"
 import { EmptyState } from "@/shared/ui/empty-state"
-import { Spinner } from "@/shared/ui/spinner"
+import { StatusBadge } from "@/shared/ui/status-badge"
 
-import type { SunatJobStatus } from "@/features/sunat/api"
+import type { ColumnDef } from "@tanstack/react-table"
 
-const ESTADO: Record<SunatJobStatus, { label: string; tone: "neutral" | "info" | "success" | "danger" }> = {
-  en_cola: { label: "En cola", tone: "neutral" },
-  procesando: { label: "Procesando", tone: "info" },
-  completado: { label: "Completado", tone: "success" },
-  error: { label: "Error", tone: "danger" },
-  cancelado: { label: "Cancelado", tone: "danger" },
-}
+const COLUMNAS_RESULTADO: ColumnDef<ResultadoComprobante>[] = [
+  { header: "Comprobante", cell: ({ row }) => <span className="font-medium">{row.original.id}</span> },
+  { header: "Emisor", cell: ({ row }) => row.original.emisor ?? "—" },
+  { header: "Estado", cell: ({ row }) => <Badge tone={toneComprobante(row.original.estado)}>{row.original.estado}</Badge> },
+  { header: "PDF", cell: ({ row }) => (row.original.pide_pdf === false ? "—" : row.original.pdf ? "✓" : "✗") },
+  { header: "XML", cell: ({ row }) => (row.original.pide_xml === false ? "—" : row.original.xml ? "✓" : "✗") },
+  {
+    header: "Descripción",
+    cell: ({ row }) => (
+      <span className="block max-w-[24rem] text-xs text-muted-foreground">{row.original.descripcion ?? "—"}</span>
+    ),
+  },
+]
 
 function ResultadosDelJob({ jobId }: { jobId: string }) {
-  const { data, isLoading } = useQuery({
+  const resultados = useQuery({
     queryKey: ["sunat", "job-result", jobId],
     queryFn: () => getJobResult(jobId),
   })
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-6">
-        <Spinner />
-      </div>
-    )
-  }
-  if (!data || data.length === 0) {
-    return <p className="p-4 text-sm text-muted-foreground">Sin comprobantes en este job.</p>
-  }
-
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="border-b text-left text-muted-foreground">
-          <tr>
-            <th className="p-2">Comprobante</th>
-            <th className="p-2">Emisor</th>
-            <th className="p-2">Estado</th>
-            <th className="p-2">PDF</th>
-            <th className="p-2">XML</th>
-            <th className="p-2">Descripción</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((r) => (
-            <tr key={r.id} className="border-b align-top last:border-0">
-              <td className="p-2 font-medium">{r.id}</td>
-              <td className="p-2">{r.emisor ?? "—"}</td>
-              <td className="p-2">
-                <Badge tone={r.estado === "OK" ? "success" : r.estado === "Parcial" ? "info" : "danger"}>
-                  {r.estado}
-                </Badge>
-              </td>
-              <td className="p-2">{r.pide_pdf === false ? "—" : r.pdf ? "✓" : "✗"}</td>
-              <td className="p-2">{r.pide_xml === false ? "—" : r.xml ? "✓" : "✗"}</td>
-              <td className="max-w-[24rem] p-2 text-xs text-muted-foreground">{r.descripcion ?? "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <AsyncBoundary
+      query={resultados}
+      isEmpty={(d) => d.length === 0}
+      empty={<p className="p-4 text-sm text-muted-foreground">Sin comprobantes en este job.</p>}
+    >
+      {(data) => <DataTable columns={COLUMNAS_RESULTADO} data={data} getRowId={(r) => r.id} />}
+    </AsyncBoundary>
   )
 }
 
@@ -78,111 +58,82 @@ export function HistorialPage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const [abierto, setAbierto] = useState<string | null>(null)
 
-  const { data, isLoading, isError } = useQuery({
+  const jobs = useQuery({
     queryKey: ["sunat", "jobs", companyId],
     queryFn: listJobs,
     enabled: companyId != null,
     refetchInterval: (query) =>
-      query.state.data?.some((j) => j.status === "en_cola" || j.status === "procesando")
-        ? 5000
-        : false,
+      query.state.data?.some((j) => j.status === "en_cola" || j.status === "procesando") ? 5000 : false,
   })
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner />
-      </div>
-    )
+  const exportar = async (jobId: string) => {
+    try {
+      await descargarReporte(jobId)
+    } catch (e) {
+      toast.error(apiError(e, "No se pudo exportar el reporte"))
+    }
   }
-  if (isError) {
-    return (
-      <EmptyState
-        icon={AlertTriangle}
-        title="No se pudo cargar el historial"
-        description="Revisa tu conexión y vuelve a intentarlo en unos segundos."
-      />
-    )
-  }
-  if (!data || data.length === 0) {
-    return (
-      <EmptyState
-        icon={Inbox}
-        title="Aún no hay descargas"
-        description="Cuando ejecutes una descarga, aparecerá aquí con su estado y resultados."
-        action={
-          <Link to="/sunat" className={buttonVariants()}>
-            Nueva descarga
-          </Link>
-        }
-      />
-    )
-  }
+
+  const columnas: ColumnDef<SunatJobItem>[] = [
+    { header: "Job", cell: ({ row }) => <span className="block max-w-[220px] truncate font-mono text-xs">{row.original.job_id}</span> },
+    { header: "Estado", cell: ({ row }) => <StatusBadge value={row.original.status} map={ESTADO_JOB} /> },
+    { header: "Fecha", cell: ({ row }) => <span className="text-muted-foreground">{new Date(row.original.created_at).toLocaleString("es-PE")}</span> },
+    {
+      header: "",
+      id: "acciones",
+      cell: ({ row }) =>
+        row.original.has_result ? (
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => exportar(row.original.job_id)}>
+              Excel
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setAbierto(abierto === row.original.job_id ? null : row.original.job_id)}
+            >
+              {abierto === row.original.job_id ? "Ocultar" : "Ver resultados"}
+            </Button>
+          </div>
+        ) : null,
+    },
+  ]
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b text-left text-muted-foreground">
-              <tr>
-                <th className="p-3">Job</th>
-                <th className="p-3">Estado</th>
-                <th className="p-3">Fecha</th>
-                <th className="p-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((job) => (
-                <tr key={job.job_id} className="border-b last:border-0">
-                  <td className="max-w-[220px] truncate p-3 font-mono text-xs">{job.job_id}</td>
-                  <td className="p-3">
-                    <Badge tone={ESTADO[job.status].tone}>{ESTADO[job.status].label}</Badge>
-                  </td>
-                  <td className="p-3 text-muted-foreground">
-                    {new Date(job.created_at).toLocaleString("es-PE")}
-                  </td>
-                  <td className="p-3 text-right">
-                    {job.has_result && (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={async () => {
-                            try {
-                              await descargarReporte(job.job_id)
-                            } catch (e) {
-                              toast.error(apiError(e, "No se pudo exportar el reporte"))
-                            }
-                          }}
-                        >
-                          Excel
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setAbierto(abierto === job.job_id ? null : job.job_id)}
-                        >
-                          {abierto === job.job_id ? "Ocultar" : "Ver resultados"}
-                        </Button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+      <AsyncBoundary
+        query={jobs}
+        isEmpty={(d) => d.length === 0}
+        empty={
+          <EmptyState
+            icon={Inbox}
+            title="Aún no hay descargas"
+            description="Cuando ejecutes una descarga, aparecerá aquí con su estado y resultados."
+            action={
+              <Link to="/sunat" className={buttonVariants()}>
+                Nueva descarga
+              </Link>
+            }
+          />
+        }
+      >
+        {(data) => (
+          <Card>
+            <CardContent className="p-0">
+              <DataTable columns={columnas} data={data} getRowId={(j) => j.job_id} />
+            </CardContent>
+          </Card>
+        )}
+      </AsyncBoundary>
 
-      {abierto && (
+      {abierto ? (
         <Card>
           <CardContent className="space-y-2 pt-5">
             <p className="text-sm font-medium">Resultados del job</p>
             <ResultadosDelJob jobId={abierto} />
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   )
 }
