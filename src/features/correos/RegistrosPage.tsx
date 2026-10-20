@@ -253,6 +253,7 @@ export function RegistrosPage() {
         open={editando != null}
         onClose={() => setEditando(null)}
         title={editando ? `Registro #${editando.id}` : ""}
+        className="max-w-lg"
       >
         {editando ? (
           <FormularioDeCorreccion

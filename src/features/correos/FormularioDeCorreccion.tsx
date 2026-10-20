@@ -82,11 +82,11 @@ export function FormularioDeCorreccion({
         e.preventDefault()
         guardar.mutate()
       }}
-      className="flex flex-col gap-4"
+      className="@container flex flex-col gap-4"
     >
       <OrigenDelCorreo registro={registro} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 @lg:grid-cols-2">
         {CAMPOS.map(({ clave, etiqueta }) => {
           const k = clave as string
           const dudoso = dudosos.has(k)
@@ -136,7 +136,7 @@ function OrigenDelCorreo({ registro }: { registro: RecordSummary }) {
   if (!origen.remitente && !origen.asunto && !origen.nombre_adjunto) return null
   const recibido = origen.recibido_en ? new Date(origen.recibido_en).toLocaleString() : null
   return (
-    <dl className="grid gap-x-6 gap-y-1 rounded-md border bg-muted/40 p-3 text-sm sm:grid-cols-2">
+    <dl className="grid gap-x-6 gap-y-2.5 rounded-md border bg-muted/40 p-3 text-sm @lg:grid-cols-2">
       <Dato etiqueta="De" valor={origen.remitente} />
       <Dato etiqueta="Asunto" valor={origen.asunto} />
       <Dato etiqueta="Archivo" valor={origen.nombre_adjunto} />
@@ -148,11 +148,9 @@ function OrigenDelCorreo({ registro }: { registro: RecordSummary }) {
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
   if (!valor) return null
   return (
-    <div className="flex gap-2">
-      <dt className="shrink-0 text-muted-foreground">{etiqueta}:</dt>
-      <dd className="truncate" title={valor}>
-        {valor}
-      </dd>
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{etiqueta}</dt>
+      <dd className="min-w-0 break-words font-medium">{valor}</dd>
     </div>
   )
 }
