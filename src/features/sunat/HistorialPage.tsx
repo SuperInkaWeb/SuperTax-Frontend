@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query"
-import { Inbox } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { FileSpreadsheet, Inbox } from "lucide-react"
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
 import {
+  cancelar,
   descargarReporte,
   getJobResult,
   listJobs,
@@ -19,6 +20,7 @@ import { Badge } from "@/shared/ui/badge"
 import { Button, buttonVariants } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
 import { DataTable } from "@/shared/ui/data-table"
+import { Drawer } from "@/shared/ui/drawer"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { StatusBadge } from "@/shared/ui/status-badge"
 
@@ -47,7 +49,7 @@ function ResultadosDelJob({ jobId }: { jobId: string }) {
     <AsyncBoundary
       query={resultados}
       isEmpty={(d) => d.length === 0}
-      empty={<p className="p-4 text-sm text-muted-foreground">Sin comprobantes en este job.</p>}
+      empty={<p className="text-sm text-muted-foreground">Sin comprobantes en este job.</p>}
     >
       {(data) => <DataTable columns={COLUMNAS_RESULTADO} data={data} getRowId={(r) => r.id} />}
     </AsyncBoundary>
@@ -56,6 +58,7 @@ function ResultadosDelJob({ jobId }: { jobId: string }) {
 
 export function HistorialPage() {
   const companyId = useActiveCompany((s) => s.companyId)
+  const queryClient = useQueryClient()
   const [abierto, setAbierto] = useState<string | null>(null)
 
   const jobs = useQuery({
@@ -74,6 +77,15 @@ export function HistorialPage() {
     }
   }
 
+  const cancelarJob = useMutation({
+    mutationFn: cancelar,
+    onSuccess: () => {
+      toast.success("Descarga cancelada")
+      queryClient.invalidateQueries({ queryKey: ["sunat", "jobs"] })
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudo cancelar")),
+  })
+
   const columnas: ColumnDef<SunatJobItem>[] = [
     { header: "Job", cell: ({ row }) => <span className="block max-w-[220px] truncate font-mono text-xs">{row.original.job_id}</span> },
     { header: "Estado", cell: ({ row }) => <StatusBadge value={row.original.status} map={ESTADO_JOB} /> },
@@ -81,26 +93,34 @@ export function HistorialPage() {
     {
       header: "",
       id: "acciones",
-      cell: ({ row }) =>
-        row.original.has_result ? (
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => exportar(row.original.job_id)}>
-              Excel
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setAbierto(abierto === row.original.job_id ? null : row.original.job_id)}
-            >
-              {abierto === row.original.job_id ? "Ocultar" : "Ver resultados"}
-            </Button>
+      cell: ({ row }) => {
+        const job = row.original
+        const enCurso = job.status === "en_cola" || job.status === "procesando"
+        return (
+          <div className="flex justify-end gap-1">
+            {job.has_result ? (
+              <>
+                <Button size="icon" variant="ghost" aria-label="Descargar Excel" title="Descargar Excel" onClick={() => exportar(job.job_id)}>
+                  <FileSpreadsheet className="size-4" />
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setAbierto(job.job_id)}>
+                  Ver resultados
+                </Button>
+              </>
+            ) : null}
+            {enCurso ? (
+              <Button size="sm" variant="ghost" disabled={cancelarJob.isPending} onClick={() => cancelarJob.mutate(job.job_id)}>
+                Cancelar
+              </Button>
+            ) : null}
           </div>
-        ) : null,
+        )
+      },
     },
   ]
 
   return (
-    <div className="space-y-4">
+    <>
       <AsyncBoundary
         query={jobs}
         isEmpty={(d) => d.length === 0}
@@ -126,14 +146,22 @@ export function HistorialPage() {
         )}
       </AsyncBoundary>
 
-      {abierto ? (
-        <Card>
-          <CardContent className="space-y-2 pt-5">
-            <p className="text-sm font-medium">Resultados del job</p>
-            <ResultadosDelJob jobId={abierto} />
-          </CardContent>
-        </Card>
-      ) : null}
-    </div>
+      <Drawer
+        open={abierto != null}
+        onClose={() => setAbierto(null)}
+        title={abierto ? `Resultados · ${abierto.slice(0, 12)}…` : ""}
+        className="max-w-2xl"
+        footer={
+          abierto ? (
+            <Button variant="outline" size="sm" onClick={() => exportar(abierto)}>
+              <FileSpreadsheet className="size-4" />
+              Descargar Excel
+            </Button>
+          ) : null
+        }
+      >
+        {abierto ? <ResultadosDelJob jobId={abierto} /> : null}
+      </Drawer>
+    </>
   )
 }
