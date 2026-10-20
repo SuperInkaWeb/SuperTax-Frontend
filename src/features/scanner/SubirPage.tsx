@@ -27,7 +27,7 @@ export function SubirPage() {
     const creado = await uploadAuto(file, onProgress, tipoForzado)
     const documento = await esperarDocumento(creado.job_id)
     if (documento.campos?.procesado_con_ia === true) {
-      toast("Procesado con IA — verifica los datos", { icon: "🤖" })
+      toast("Procesado con IA — verifica los datos", { icon: <Bot className="size-4" /> })
     } else {
       toast.success(`${documento.tipo_etiqueta ?? documento.tipo_documento} detectado`)
     }

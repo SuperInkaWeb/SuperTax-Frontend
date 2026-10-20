@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { FileSpreadsheet, Inbox } from "lucide-react"
+import { Check, FileSpreadsheet, Inbox, X } from "lucide-react"
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
@@ -26,12 +26,18 @@ import { StatusBadge } from "@/shared/ui/status-badge"
 
 import type { ColumnDef } from "@tanstack/react-table"
 
+/** Marca de un comprobante: no pedido (—), presente (check) o ausente (equis). */
+function Marca({ pedido, tiene }: { pedido?: boolean; tiene?: boolean }) {
+  if (pedido === false) return <span className="text-muted-foreground">—</span>
+  return tiene ? <Check className="size-4 text-primary" /> : <X className="size-4 text-destructive" />
+}
+
 const COLUMNAS_RESULTADO: ColumnDef<ResultadoComprobante>[] = [
   { header: "Comprobante", cell: ({ row }) => <span className="font-medium">{row.original.id}</span> },
   { header: "Emisor", cell: ({ row }) => row.original.emisor ?? "—" },
   { header: "Estado", cell: ({ row }) => <Badge tone={toneComprobante(row.original.estado)}>{row.original.estado}</Badge> },
-  { header: "PDF", cell: ({ row }) => (row.original.pide_pdf === false ? "—" : row.original.pdf ? "✓" : "✗") },
-  { header: "XML", cell: ({ row }) => (row.original.pide_xml === false ? "—" : row.original.xml ? "✓" : "✗") },
+  { header: "PDF", cell: ({ row }) => <Marca pedido={row.original.pide_pdf} tiene={row.original.pdf} /> },
+  { header: "XML", cell: ({ row }) => <Marca pedido={row.original.pide_xml} tiene={row.original.xml} /> },
   {
     header: "Descripción",
     cell: ({ row }) => (

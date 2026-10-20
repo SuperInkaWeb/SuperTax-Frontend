@@ -121,8 +121,8 @@ export function MapeoArchivo({
       )}
 
       {validacion?.avisos.map((a) => (
-        <p key={a} className="text-xs">
-          ⚠ {a}
+        <p key={a} className="flex items-center gap-1 text-xs">
+          <AlertTriangle className="size-3 shrink-0" /> {a}
         </p>
       ))}
 

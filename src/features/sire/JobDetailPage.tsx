@@ -147,7 +147,7 @@ export function JobDetailPage() {
             {job.status === "en_cola"
               ? "La conciliación está en cola, iniciará en breve…"
               : esReuso
-                ? `⚡ Reutilizando propuesta generada el ${fmtFecha(job.propuesta_origen_at!)} — sin espera de SUNAT. Procesando…`
+                ? `Reutilizando propuesta generada el ${fmtFecha(job.propuesta_origen_at!)} — sin espera de SUNAT. Procesando…`
                 : "Descargando propuesta SUNAT y procesando registros. Esta página se actualiza automáticamente cada 3 segundos."}
           </AlertDescription>
         </Alert>

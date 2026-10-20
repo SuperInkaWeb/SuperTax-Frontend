@@ -1,3 +1,5 @@
+import { Check } from "lucide-react"
+
 import { toneComprobante } from "@/features/sunat/estados"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
@@ -7,11 +9,15 @@ import { DataTable } from "@/shared/ui/data-table"
 import type { ResultadoComprobante } from "@/features/sunat/api"
 import type { ColumnDef } from "@tanstack/react-table"
 
+function Marca({ tiene }: { tiene?: boolean }) {
+  return tiene ? <Check className="size-4 text-primary" /> : <span className="text-muted-foreground">—</span>
+}
+
 const COLUMNAS: ColumnDef<ResultadoComprobante>[] = [
   { header: "Comprobante", cell: ({ row }) => <span className="font-medium">{row.original.id}</span> },
   { header: "Emisor", cell: ({ row }) => row.original.emisor ?? "—" },
-  { header: "PDF", cell: ({ row }) => (row.original.pdf ? "✓" : "—") },
-  { header: "XML", cell: ({ row }) => (row.original.xml ? "✓" : "—") },
+  { header: "PDF", cell: ({ row }) => <Marca tiene={row.original.pdf} /> },
+  { header: "XML", cell: ({ row }) => <Marca tiene={row.original.xml} /> },
   { header: "Estado", cell: ({ row }) => <Badge tone={toneComprobante(row.original.estado)}>{row.original.estado}</Badge> },
   {
     header: "Descripción",

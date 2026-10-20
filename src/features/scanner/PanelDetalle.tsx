@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query"
-import { Bot, Save, X } from "lucide-react"
+import { AlertTriangle, Bot, Pencil, Save, X } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -104,7 +104,7 @@ export function PanelDetalle({ doc, camposLabels, onCerrar, onGuardado }: Props)
               <div key={campo}>
                 <label className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {camposLabels[campo] ?? campo}
-                  {editado && !error && <span className="text-[10px] font-semibold text-primary">✎</span>}
+                  {editado && !error && <Pencil className="size-3 text-primary" />}
                 </label>
                 <input
                   type="text"
@@ -118,7 +118,11 @@ export function PanelDetalle({ doc, camposLabels, onCerrar, onGuardado }: Props)
                         : "border-border focus:border-primary/50"
                   }`}
                 />
-                {error && <p className="mt-0.5 text-xs text-red-500">⚠ {error}</p>}
+                {error && (
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-red-500">
+                    <AlertTriangle className="size-3" /> {error}
+                  </p>
+                )}
               </div>
             )
           })}
