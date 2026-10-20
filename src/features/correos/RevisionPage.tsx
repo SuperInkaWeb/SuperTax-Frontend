@@ -4,12 +4,11 @@ import { ClipboardCheck } from "lucide-react"
 import { reviewQueue, type RecordSummary } from "@/features/correos/api"
 import { FormularioDeCorreccion } from "@/features/correos/FormularioDeCorreccion"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Badge } from "@/shared/ui/badge"
-import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { PageHeader } from "@/shared/ui/page-header"
-import { Spinner } from "@/shared/ui/spinner"
 
 export function RevisionPage() {
   const companyId = useActiveCompany((s) => s.companyId)
@@ -26,8 +25,6 @@ export function RevisionPage() {
     queryClient.invalidateQueries({ queryKey: ["correos", "review-count"] })
   }
 
-  const registros = cola.data?.items ?? []
-
   return (
     <div className="space-y-5">
       <PageHeader
@@ -35,38 +32,29 @@ export function RevisionPage() {
         description="Corrige lo que el lector no pudo dar por bueno. Los campos resaltados se leyeron con poca confianza."
       />
 
-      {cola.isLoading ? (
-        <div className="flex justify-center py-10">
-          <Spinner />
-        </div>
-      ) : cola.isError ? (
-        <EmptyState
-          icon={ClipboardCheck}
-          title="No se pudo cargar la cola"
-          description="Hubo un error al consultar los registros pendientes."
-          action={
-            <Button variant="outline" onClick={() => void cola.refetch()}>
-              Reintentar
-            </Button>
-          }
-        />
-      ) : registros.length === 0 ? (
-        <EmptyState
-          icon={ClipboardCheck}
-          title="No hay nada pendiente de revisar"
-          description="Los registros que el pipeline no pueda dar por buenos aparecerán aquí."
-        />
-      ) : (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {registros.length} registro{registros.length === 1 ? "" : "s"} pendiente
-            {registros.length === 1 ? "" : "s"}.
-          </p>
-          {registros.map((r) => (
-            <FichaDeRevision key={r.id} registro={r} onResuelto={refrescar} />
-          ))}
-        </div>
-      )}
+      <AsyncBoundary
+        query={cola}
+        isEmpty={(d) => d.items.length === 0}
+        empty={
+          <EmptyState
+            icon={ClipboardCheck}
+            title="No hay nada pendiente de revisar"
+            description="Los registros que el pipeline no pueda dar por buenos aparecerán aquí."
+          />
+        }
+      >
+        {(data) => (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {data.items.length} registro{data.items.length === 1 ? "" : "s"} pendiente
+              {data.items.length === 1 ? "" : "s"}.
+            </p>
+            {data.items.map((r) => (
+              <FichaDeRevision key={r.id} registro={r} onResuelto={refrescar} />
+            ))}
+          </div>
+        )}
+      </AsyncBoundary>
     </div>
   )
 }

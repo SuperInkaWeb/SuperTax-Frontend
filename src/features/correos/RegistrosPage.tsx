@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Table as TableIcon } from "lucide-react"
+import { FileText, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -11,38 +11,34 @@ import {
   type RecordFilters,
   type RecordSummary,
 } from "@/features/correos/api"
+import { AYUDA_COMPLETITUD, AYUDA_REVISION, COMPLETITUD, REVISION } from "@/features/correos/estados"
 import { FormularioDeCorreccion } from "@/features/correos/FormularioDeCorreccion"
 import { useAbrirDocumento } from "@/features/correos/hooks/useAbrirDocumento"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
-import { Badge, type Tone } from "@/shared/ui/badge"
+import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
+import { confirmar } from "@/shared/ui/confirm"
+import { DataTable } from "@/shared/ui/data-table"
+import { Drawer } from "@/shared/ui/drawer"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
+import { MoneyCell } from "@/shared/ui/money-cell"
 import { PageHeader } from "@/shared/ui/page-header"
 import { Select } from "@/shared/ui/select"
-import { Spinner } from "@/shared/ui/spinner"
+import { StatusBadge } from "@/shared/ui/status-badge"
+
+import type { ColumnDef } from "@tanstack/react-table"
+import type { ReactNode } from "react"
 
 const PAGINA = 25
-
-const COMPLETITUD: Record<string, { label: string; tone: Tone; ayuda: string }> = {
-  complete: { label: "Completo", tone: "success", ayuda: "Se leyeron todos los datos clave con confianza" },
-  partial: { label: "Parcial", tone: "info", ayuda: "Falta algún dato clave o se leyó con poca confianza" },
-  empty: { label: "Vacío", tone: "danger", ayuda: "No se reconoció como constancia de pago" },
-}
-
-const REVISION: Record<string, { label: string; tone: Tone; ayuda: string }> = {
-  not_required: { label: "No requiere", tone: "neutral", ayuda: "El sistema lo dio por bueno; nadie tiene que revisarlo" },
-  pending: { label: "Pendiente", tone: "info", ayuda: "Necesita que una persona lo revise y confirme" },
-  approved: { label: "Aprobado", tone: "success", ayuda: "Una persona lo revisó y lo aprobó" },
-  rejected: { label: "Rechazado", tone: "danger", ayuda: "Marcado como no válido (documento ilegible o ajeno)" },
-}
 
 export function RegistrosPage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const queryClient = useQueryClient()
+  const documento = useAbrirDocumento()
 
   const [ruc, setRuc] = useState("")
   const [rucInquilino, setRucInquilino] = useState("")
@@ -55,7 +51,8 @@ export function RegistrosPage() {
 
   const [aplicados, setAplicados] = useState<RecordFilters>({})
   const [offset, setOffset] = useState(0)
-  const [seleccion, setSeleccion] = useState<Set<number>>(new Set())
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set())
+  const [editando, setEditando] = useState<RecordSummary | null>(null)
 
   const registros = useQuery({
     queryKey: ["correos", "records", aplicados, offset],
@@ -67,6 +64,16 @@ export function RegistrosPage() {
     mutationFn: (ids?: number[]) => exportRecords({ ...aplicados, formato, ids }),
     onError: (err) => toast.error(apiError(err, "No se pudo exportar")),
   })
+  const borrar = useMutation({
+    mutationFn: deleteRecord,
+    onSuccess: () => {
+      toast.success("Registro eliminado")
+      invalidar()
+    },
+    onError: (err) => toast.error(apiError(err)),
+  })
+
+  const invalidar = () => queryClient.invalidateQueries({ queryKey: ["correos", "records"] })
 
   const aplicarFiltros = () => {
     setOffset(0)
@@ -82,27 +89,50 @@ export function RegistrosPage() {
     })
   }
 
-  const filas = registros.data?.items ?? []
-  const total = registros.data?.total ?? 0
-  const hayMas = offset + filas.length < total
-
-  const alternar = (id: number) =>
-    setSeleccion((prev) => {
-      const copia = new Set(prev)
-      if (copia.has(id)) copia.delete(id)
-      else copia.add(id)
-      return copia
+  const eliminar = async (r: RecordSummary) => {
+    const ok = await confirmar({
+      title: "Eliminar registro",
+      description: "Esta acción no se puede deshacer. El adjunto original se conserva.",
+      destructive: true,
     })
-  const todasMarcadas = filas.length > 0 && filas.every((f) => seleccion.has(f.id))
-  const alternarTodas = () =>
-    setSeleccion((prev) => {
-      const copia = new Set(prev)
-      if (todasMarcadas) filas.forEach((f) => copia.delete(f.id))
-      else filas.forEach((f) => copia.add(f.id))
-      return copia
-    })
+    if (ok) borrar.mutate(r.id)
+  }
 
-  const invalidar = () => queryClient.invalidateQueries({ queryKey: ["correos", "records"] })
+  const columnas: ColumnDef<RecordSummary>[] = [
+    { header: "RUC", cell: ({ row }) => <span className="font-mono text-xs">{row.original.ruc_contribuyente ?? "—"}</span> },
+    { header: "Nombre", cell: ({ row }) => row.original.nombre_contribuyente || "—" },
+    { header: "Periodo", cell: ({ row }) => <span className="tabular-nums">{row.original.periodo ?? "—"}</span> },
+    { header: "Fecha", cell: ({ row }) => <span className="whitespace-nowrap">{row.original.fecha_de_pago ?? "—"}</span> },
+    { header: "Importe", cell: ({ row }) => <MoneyCell amount={row.original.importe_pagado} currency={row.original.moneda} /> },
+    {
+      header: "Estado",
+      cell: ({ row }) => (
+        <span title={AYUDA_COMPLETITUD[row.original.completitud]}>
+          <StatusBadge value={row.original.completitud} map={COMPLETITUD} />
+        </span>
+      ),
+    },
+    {
+      header: "Revisión",
+      cell: ({ row }) => (
+        <span title={AYUDA_REVISION[row.original.estado_de_revision]}>
+          <StatusBadge value={row.original.estado_de_revision} map={REVISION} />
+        </span>
+      ),
+    },
+    { header: "Origen", cell: ({ row }) => <OrigenCell r={row.original} documento={documento} /> },
+    {
+      header: "",
+      id: "acciones",
+      cell: ({ row }) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" aria-label="Eliminar" onClick={() => eliminar(row.original)}>
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -162,223 +192,113 @@ export function RegistrosPage() {
           <div>
             <CardTitle>Registros</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Marca filas para exportar solo esas, o exporta todo lo filtrado.
+              Marca filas para exportar solo esas, o exporta todo lo filtrado. Haz clic en una fila para corregirla.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Select
-              value={formato}
-              onChange={(e) => setFormato(e.target.value as FormatoReporte)}
-              aria-label="Formato del reporte"
-              className="w-auto"
-            >
+            <Select value={formato} onChange={(e) => setFormato(e.target.value as FormatoReporte)} aria-label="Formato del reporte" className="w-auto">
               <option value="xlsx">Excel (.xlsx)</option>
               <option value="csv">CSV</option>
             </Select>
-            <Button
-              variant="outline"
-              disabled={exportar.isPending || seleccion.size === 0}
-              onClick={() => exportar.mutate([...seleccion])}
-            >
+            <Button variant="outline" disabled={exportar.isPending || seleccion.size === 0} onClick={() => exportar.mutate([...seleccion].map(Number))}>
               Exportar seleccionados ({seleccion.size})
             </Button>
-            <Button disabled={exportar.isPending || filas.length === 0} onClick={() => exportar.mutate(undefined)}>
+            <Button disabled={exportar.isPending} onClick={() => exportar.mutate(undefined)}>
               Exportar todo lo filtrado
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {registros.isLoading ? (
-            <div className="flex justify-center py-10">
-              <Spinner />
-            </div>
-          ) : registros.isError ? (
-            <EmptyState
-              icon={TableIcon}
-              title="No se pudieron cargar los registros"
-              description="Hubo un error al consultar. Intenta de nuevo."
-              action={
-                <Button variant="outline" onClick={() => void registros.refetch()}>
-                  Reintentar
-                </Button>
-              }
-            />
-          ) : filas.length === 0 ? (
-            <EmptyState
-              icon={TableIcon}
-              title="Ningún registro con esos criterios"
-              description="Lanza un escaneo o prueba a quitar los filtros."
-            />
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-muted-foreground">
-                      <th className="px-2 py-2">
-                        <input type="checkbox" checked={todasMarcadas} onChange={alternarTodas} aria-label="Seleccionar todos" />
-                      </th>
-                      <th className="px-2 py-2">RUC</th>
-                      <th className="px-2 py-2">Nombre</th>
-                      <th className="px-2 py-2">Periodo</th>
-                      <th className="px-2 py-2">Fecha</th>
-                      <th className="px-2 py-2">Importe pagado</th>
-                      <th className="px-2 py-2">Estado</th>
-                      <th className="px-2 py-2">Revisión</th>
-                      <th className="px-2 py-2">Origen</th>
-                      <th className="px-2 py-2">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filas.map((r) => (
-                      <FilaDeRegistro
-                        key={r.id}
-                        registro={r}
-                        seleccionado={seleccion.has(r.id)}
-                        onAlternar={() => alternar(r.id)}
-                        onCambiado={invalidar}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <Button variant="outline" size="sm" disabled={offset === 0} onClick={() => setOffset((o) => Math.max(0, o - PAGINA))}>
-                  Anterior
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  {offset + 1}–{offset + filas.length} de {total}
-                  {seleccion.size > 0 ? ` · ${seleccion.size} marcado${seleccion.size === 1 ? "" : "s"}` : ""}
-                </span>
-                <Button variant="outline" size="sm" disabled={!hayMas} onClick={() => setOffset((o) => o + PAGINA)}>
-                  Siguiente
-                </Button>
-              </div>
-            </>
-          )}
+          <AsyncBoundary
+            query={registros}
+            isEmpty={(d) => d.items.length === 0}
+            empty={
+              <EmptyState
+                icon={FileText}
+                title="Ningún registro con esos criterios"
+                description="Lanza un escaneo o prueba a quitar los filtros."
+              />
+            }
+          >
+            {(data) => (
+              <>
+                <DataTable
+                  columns={columnas}
+                  data={data.items}
+                  getRowId={(r) => String(r.id)}
+                  selectable
+                  selected={seleccion}
+                  onSelectedChange={setSeleccion}
+                  onRowClick={(r) => setEditando(r)}
+                />
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <Button variant="outline" size="sm" disabled={offset === 0} onClick={() => setOffset((o) => Math.max(0, o - PAGINA))}>
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {offset + 1}–{offset + data.items.length} de {data.total}
+                    {seleccion.size > 0 ? ` · ${seleccion.size} marcado${seleccion.size === 1 ? "" : "s"}` : ""}
+                  </span>
+                  <Button variant="outline" size="sm" disabled={offset + data.items.length >= data.total} onClick={() => setOffset((o) => o + PAGINA)}>
+                    Siguiente
+                  </Button>
+                </div>
+              </>
+            )}
+          </AsyncBoundary>
         </CardContent>
       </Card>
+
+      <Drawer
+        open={editando != null}
+        onClose={() => setEditando(null)}
+        title={editando ? `Registro #${editando.id}` : ""}
+      >
+        {editando ? (
+          <FormularioDeCorreccion
+            registro={editando}
+            onResuelto={() => {
+              setEditando(null)
+              invalidar()
+            }}
+          />
+        ) : null}
+      </Drawer>
     </div>
   )
 }
 
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+function OrigenCell({
+  r,
+  documento,
+}: {
+  r: RecordSummary
+  documento: ReturnType<typeof useAbrirDocumento>
+}) {
+  if (!r.origen.nombre_adjunto && !r.origen.remitente) return <>—</>
+  return (
+    <div className="flex max-w-[14rem] flex-col" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => void documento.abrir(r.id)}
+        disabled={documento.cargando}
+        title={r.origen.asunto || "Ver documento"}
+        className="truncate text-left text-primary hover:underline disabled:opacity-60"
+      >
+        {documento.error ? "Reintentar" : r.origen.nombre_adjunto || "Ver documento"}
+      </button>
+      {r.origen.remitente ? (
+        <span className="truncate text-xs text-muted-foreground">{r.origen.remitente}</span>
+      ) : null}
+    </div>
+  )
+}
+
+function Campo({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
       {children}
     </div>
-  )
-}
-
-function FilaDeRegistro({
-  registro,
-  seleccionado,
-  onAlternar,
-  onCambiado,
-}: {
-  registro: RecordSummary
-  seleccionado: boolean
-  onAlternar: () => void
-  onCambiado: () => void
-}) {
-  const [editando, setEditando] = useState(false)
-  const [confirmando, setConfirmando] = useState(false)
-  const documento = useAbrirDocumento()
-  const comp = COMPLETITUD[registro.completitud]
-  const rev = REVISION[registro.estado_de_revision]
-
-  const borrar = useMutation({
-    mutationFn: () => deleteRecord(registro.id),
-    onSuccess: () => {
-      toast.success("Registro eliminado")
-      onCambiado()
-    },
-    onError: (err) => toast.error(apiError(err)),
-  })
-
-  const importe = registro.importe_pagado
-    ? `${registro.moneda === "USD" ? "US$" : "S/"} ${registro.importe_pagado}`
-    : "—"
-
-  return (
-    <>
-      <tr className="border-b last:border-0">
-        <td className="px-2 py-2">
-          <input type="checkbox" checked={seleccionado} onChange={onAlternar} aria-label="Seleccionar registro" />
-        </td>
-        <td className="px-2 py-2 font-mono text-xs">{registro.ruc_contribuyente ?? "—"}</td>
-        <td className="px-2 py-2">{registro.nombre_contribuyente || "—"}</td>
-        <td className="px-2 py-2 tabular-nums">{registro.periodo ?? "—"}</td>
-        <td className="px-2 py-2 whitespace-nowrap">{registro.fecha_de_pago ?? "—"}</td>
-        <td className="px-2 py-2 tabular-nums">{importe}</td>
-        <td className="px-2 py-2">
-          <span title={comp?.ayuda}>
-            <Badge tone={comp?.tone ?? "neutral"}>{comp?.label ?? registro.completitud}</Badge>
-          </span>
-        </td>
-        <td className="px-2 py-2">
-          <span title={rev?.ayuda}>
-            <Badge tone={rev?.tone ?? "neutral"}>{rev?.label ?? registro.estado_de_revision}</Badge>
-          </span>
-        </td>
-        <td className="px-2 py-2">
-          {registro.origen.nombre_adjunto || registro.origen.remitente ? (
-            <div className="flex max-w-[14rem] flex-col">
-              <button
-                type="button"
-                onClick={() => void documento.abrir(registro.id)}
-                disabled={documento.cargando}
-                title={registro.origen.asunto || "Ver documento"}
-                className="truncate text-left text-primary hover:underline disabled:opacity-60"
-              >
-                {documento.error ? "Reintentar" : registro.origen.nombre_adjunto || "Ver documento"}
-              </button>
-              {registro.origen.remitente && (
-                <span className="truncate text-xs text-muted-foreground">{registro.origen.remitente}</span>
-              )}
-            </div>
-          ) : (
-            "—"
-          )}
-        </td>
-        <td className="px-2 py-2">
-          {confirmando ? (
-            <div className="flex items-center gap-1 whitespace-nowrap">
-              <span className="text-xs text-muted-foreground">¿Borrar?</span>
-              <Button variant="destructive" size="sm" disabled={borrar.isPending} onClick={() => borrar.mutate()}>
-                Sí
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmando(false)}>
-                No
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 whitespace-nowrap">
-              <Button variant="outline" size="sm" onClick={() => setEditando((v) => !v)}>
-                {editando ? "Cerrar" : "Editar"}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmando(true)}>
-                Eliminar
-              </Button>
-            </div>
-          )}
-        </td>
-      </tr>
-      {editando && (
-        <tr className="border-b">
-          <td colSpan={10} className="bg-muted/40 p-4">
-            <FormularioDeCorreccion
-              registro={registro}
-              onResuelto={() => {
-                setEditando(false)
-                onCambiado()
-              }}
-            />
-          </td>
-        </tr>
-      )}
-    </>
   )
 }

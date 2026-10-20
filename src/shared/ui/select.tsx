@@ -1,8 +1,8 @@
 import { cn } from "@/shared/lib/utils"
 
-import type { SelectHTMLAttributes } from "react"
+import type { ComponentPropsWithRef } from "react"
 
-export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className, ...props }: ComponentPropsWithRef<"select">) {
   return (
     <select
       className={cn(

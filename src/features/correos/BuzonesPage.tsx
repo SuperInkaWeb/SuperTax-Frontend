@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Inbox } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -8,32 +9,21 @@ import {
   type MailboxProvider,
   type MailboxSummary,
 } from "@/features/correos/api"
+import { ESTADO_BUZON } from "@/features/correos/estados"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
-import { Badge, type Tone } from "@/shared/ui/badge"
+import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { confirmar } from "@/shared/ui/confirm"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { Spinner } from "@/shared/ui/spinner"
-import { Inbox } from "lucide-react"
+import { StatusBadge } from "@/shared/ui/status-badge"
 
 const PROVEEDORES: { valor: MailboxProvider; etiqueta: string }[] = [
   { valor: "gmail", etiqueta: "Gmail" },
   { valor: "outlook", etiqueta: "Outlook" },
 ]
-
-const TONO_POR_ESTADO: Record<string, Tone> = {
-  active: "success",
-  revoked: "danger",
-  error: "danger",
-}
-
-const TEXTO_POR_ESTADO: Record<string, string> = {
-  active: "Conectado",
-  revoked: "Revocado",
-  error: "Con error",
-}
 
 export function BuzonesPage() {
   const companyId = useActiveCompany((s) => s.companyId)
@@ -47,8 +37,6 @@ export function BuzonesPage() {
 
   const conectar = useMutation({
     mutationFn: authorizeMailbox,
-    // Navegación completa, no router: el destino es el proveedor de identidad,
-    // fuera de esta aplicación. Vuelve a /correos/oauth/callback.
     onSuccess: (url) => {
       window.location.href = url
     },
@@ -65,7 +53,6 @@ export function BuzonesPage() {
   })
 
   const proveedorEnCurso = conectar.isPending ? conectar.variables : undefined
-  const conexiones = buzones.data ?? []
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,28 +83,30 @@ export function BuzonesPage() {
           <CardTitle>Buzones conectados</CardTitle>
         </CardHeader>
         <CardContent>
-          {buzones.isLoading ? (
-            <div className="flex justify-center py-6">
-              <Spinner />
-            </div>
-          ) : conexiones.length === 0 ? (
-            <EmptyState
-              icon={Inbox}
-              title="Ningún buzón conectado"
-              description="Conecta una cuenta para empezar a escanear correos."
-            />
-          ) : (
-            <ul className="flex flex-col divide-y">
-              {conexiones.map((conexion) => (
-                <FilaDeBuzon
-                  key={conexion.id}
-                  conexion={conexion}
-                  onDesvincular={() => desvincularBuzon(conexion, desvincular)}
-                  ocupado={desvincular.isPending}
-                />
-              ))}
-            </ul>
-          )}
+          <AsyncBoundary
+            query={buzones}
+            isEmpty={(d) => d.length === 0}
+            empty={
+              <EmptyState
+                icon={Inbox}
+                title="Ningún buzón conectado"
+                description="Conecta una cuenta para empezar a escanear correos."
+              />
+            }
+          >
+            {(conexiones) => (
+              <ul className="flex flex-col divide-y">
+                {conexiones.map((conexion) => (
+                  <FilaDeBuzon
+                    key={conexion.id}
+                    conexion={conexion}
+                    onDesvincular={() => desvincularBuzon(conexion, desvincular)}
+                    ocupado={desvincular.isPending}
+                  />
+                ))}
+              </ul>
+            )}
+          </AsyncBoundary>
         </CardContent>
       </Card>
     </div>
@@ -131,6 +120,7 @@ async function desvincularBuzon(
   const ok = await confirmar({
     title: "Desvincular buzón",
     description: `Se revocará el acceso a ${conexion.account_email || conexion.provider}. Los datos ya extraídos se conservan.`,
+    destructive: true,
   })
   if (ok) desvincular.mutate(conexion.id)
 }
@@ -155,9 +145,7 @@ function FilaDeBuzon({
         </span>
       </div>
       <div className="flex items-center gap-3">
-        <Badge tone={TONO_POR_ESTADO[conexion.status] ?? "neutral"}>
-          {TEXTO_POR_ESTADO[conexion.status] ?? conexion.status}
-        </Badge>
+        <StatusBadge value={conexion.status} map={ESTADO_BUZON} />
         <Button variant="destructive" size="sm" disabled={ocupado} onClick={onDesvincular}>
           Desvincular
         </Button>
