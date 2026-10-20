@@ -40,7 +40,7 @@ export function Donut({ data, size = 150, thickness = 18, centro, subcentro }: P
                 cy={size / 2}
                 r={r}
                 fill="none"
-                stroke={d.color}
+                style={{ stroke: d.color }}
                 strokeWidth={thickness}
                 strokeDasharray={`${len} ${c - len}`}
                 strokeDashoffset={-acumulado}

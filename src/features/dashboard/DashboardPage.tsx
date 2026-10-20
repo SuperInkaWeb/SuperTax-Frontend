@@ -1,27 +1,24 @@
 import { useQuery } from "@tanstack/react-query"
-import { Building2, Download, FileSpreadsheet, PackageOpen, Plus, ScanLine } from "lucide-react"
+import { Building2, Download, FileSpreadsheet, Mail, PackageOpen, Plus, ScanLine } from "lucide-react"
 import { Link } from "react-router-dom"
 
+import { listRecords, listScans, reviewCount } from "@/features/correos/api"
 import { Donut } from "@/features/dashboard/Donut"
 import { listDocumentos } from "@/features/scanner/api"
 import { listJobs as listSireJobs } from "@/features/sire/api"
 import { listJobs as listSunatJobs } from "@/features/sunat/api"
+import { CHART_COLORS } from "@/shared/lib/chartColors"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
 import { useAuthStore } from "@/shared/stores/auth"
 import { buttonVariants } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import { EmptyState } from "@/shared/ui/empty-state"
+import { StatCard } from "@/shared/ui/stat-card"
 
-const COLOR = { A: "#f59e0b", B: "#ef4444", C: "#3b82f6", D: "#10b981" }
-
-function StatMini({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div>
-      <p className="font-mono text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
-  )
-}
+// Colores de los escenarios de conciliación, tomados de la rampa del design system
+// (chart-2 verde = coinciden, chart-3 azul = diferencias, chart-4 ámbar = solo
+// empresa, chart-5 teja = solo SUNAT).
+const ESCENARIO = { A: CHART_COLORS[3], B: CHART_COLORS[4], C: CHART_COLORS[2], D: CHART_COLORS[1] }
 
 function SireCard({ companyId }: { companyId: number }) {
   const { data: jobs = [] } = useQuery({
@@ -38,10 +35,10 @@ function SireCard({ companyId }: { companyId: number }) {
 
   const segmentos = ultima
     ? [
-        { label: "Coinciden OK", value: ultima.escenario_d_count ?? 0, color: COLOR.D },
-        { label: "Diferencias", value: ultima.escenario_c_count ?? 0, color: COLOR.C },
-        { label: "Solo empresa", value: ultima.escenario_a_count ?? 0, color: COLOR.A },
-        { label: "Solo SUNAT", value: ultima.escenario_b_count ?? 0, color: COLOR.B },
+        { label: "Coinciden OK", value: ultima.escenario_d_count ?? 0, color: ESCENARIO.D },
+        { label: "Diferencias", value: ultima.escenario_c_count ?? 0, color: ESCENARIO.C },
+        { label: "Solo empresa", value: ultima.escenario_a_count ?? 0, color: ESCENARIO.A },
+        { label: "Solo SUNAT", value: ultima.escenario_b_count ?? 0, color: ESCENARIO.B },
       ].filter((s) => s.value > 0)
     : []
   const comparado = segmentos.reduce((s, d) => s + d.value, 0)
@@ -61,9 +58,9 @@ function SireCard({ companyId }: { companyId: number }) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-3">
-          <StatMini label="Total" value={jobs.length} />
-          <StatMini label="En proceso" value={enProceso} />
-          <StatMini label="Con error" value={conError} />
+          <StatCard label="Total" value={jobs.length} />
+          <StatCard label="En proceso" value={enProceso} />
+          <StatCard label="Con error" value={conError} />
         </div>
 
         {segmentos.length > 0 ? (
@@ -119,9 +116,9 @@ function SunatCard({ companyId }: { companyId: number }) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-3">
-          <StatMini label="Descargas" value={jobs.length} />
-          <StatMini label="Completadas" value={completadas} />
-          <StatMini label="En proceso" value={enProceso} />
+          <StatCard label="Descargas" value={jobs.length} />
+          <StatCard label="Completadas" value={completadas} />
+          <StatCard label="En proceso" value={enProceso} />
         </div>
       </CardContent>
     </Card>
@@ -145,7 +142,36 @@ function ScannerCard({ companyId }: { companyId: number }) {
         </Link>
       </CardHeader>
       <CardContent>
-        <StatMini label="Documentos procesados" value={docs.length} />
+        <StatCard label="Documentos procesados" value={docs.length} />
+      </CardContent>
+    </Card>
+  )
+}
+
+function CorreosCard({ companyId }: { companyId: number }) {
+  const registros = useQuery({
+    queryKey: ["correos", "records-total", companyId],
+    queryFn: () => listRecords({ limit: 1 }),
+  })
+  const pendientes = useQuery({ queryKey: ["correos", "review-count"], queryFn: reviewCount })
+  const escaneos = useQuery({ queryKey: ["correos", "scans"], queryFn: listScans })
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2 text-base text-foreground">
+          <Mail className="size-4 text-primary" /> Automatización de correos
+        </CardTitle>
+        <Link to="/correos" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Plus className="size-4" /> Escanear
+        </Link>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-3">
+          <StatCard label="Registros" value={registros.data?.total ?? 0} />
+          <StatCard label="Pendientes" value={pendientes.data ?? 0} />
+          <StatCard label="Escaneos" value={escaneos.data?.length ?? 0} />
+        </div>
       </CardContent>
     </Card>
   )
@@ -185,6 +211,7 @@ export function DashboardPage() {
           {modulos.includes("sire") && <SireCard companyId={companyId} />}
           {modulos.includes("sunat") && <SunatCard companyId={companyId} />}
           {modulos.includes("scanner") && <ScannerCard companyId={companyId} />}
+          {modulos.includes("correos") && <CorreosCard companyId={companyId} />}
         </div>
       )}
     </div>
