@@ -1,23 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Check, Inbox, ShieldAlert, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import { listAccessRequests, reviewAccessRequest } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
 import { useAuthStore } from "@/shared/stores/auth"
-import { Badge } from "@/shared/ui/badge"
+import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
 import { confirmar } from "@/shared/ui/confirm"
-import { Label } from "@/shared/ui/label"
-import { Spinner } from "@/shared/ui/spinner"
+import { DataTable } from "@/shared/ui/data-table"
+import { Drawer } from "@/shared/ui/drawer"
+import { EmptyState } from "@/shared/ui/empty-state"
+import { FormField } from "@/shared/ui/form-field"
+import { StatusBadge, type StatusMeta } from "@/shared/ui/status-badge"
 
 import type { AccessRequest } from "@/features/admin/api"
+import type { ColumnDef } from "@tanstack/react-table"
 
-function EstadoBadge({ status }: { status: string }) {
-  if (status === "aprobado") return <Badge tone="success">Aprobado</Badge>
-  if (status === "rechazado") return <Badge tone="danger">Rechazado</Badge>
-  return <Badge>Pendiente</Badge>
+const ESTADO: Record<string, StatusMeta> = {
+  pendiente: { label: "Pendiente", tone: "info" },
+  aprobado: { label: "Aprobado", tone: "success" },
+  rechazado: { label: "Rechazado", tone: "danger" },
 }
 
 export function SolicitudesPage() {
@@ -26,7 +31,7 @@ export function SolicitudesPage() {
   const [rechazando, setRechazando] = useState<AccessRequest | null>(null)
   const [motivo, setMotivo] = useState("")
 
-  const { data, isLoading } = useQuery({
+  const solicitudesQuery = useQuery({
     queryKey: ["admin", "access-requests"],
     queryFn: () => listAccessRequests(),
     enabled: esPlatformAdmin,
@@ -44,7 +49,7 @@ export function SolicitudesPage() {
     onError: (err) => toast.error(apiError(err, "No se pudo procesar la solicitud")),
   })
 
-  async function aprobar(req: AccessRequest) {
+  const aprobar = async (req: AccessRequest) => {
     const ok = await confirmar({
       title: "¿Aprobar solicitud?",
       description: `Se creará la empresa "${req.empresa_nombre}" (RUC ${req.ruc}) y ${req.email} quedará como su Admin. Recibirá un email para establecer su contraseña.`,
@@ -55,107 +60,124 @@ export function SolicitudesPage() {
 
   if (!esPlatformAdmin) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Sección solo para administradores de plataforma.
-      </p>
-    )
-  }
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner />
-      </div>
+      <EmptyState
+        icon={ShieldAlert}
+        title="Sección restringida"
+        description="Solo los administradores de plataforma pueden revisar solicitudes de acceso."
+      />
     )
   }
 
-  const solicitudes = [...(data ?? [])].sort((a, b) => b.id - a.id)
-  const pendientes = solicitudes.filter((s) => s.status === "pendiente").length
-
-  if (solicitudes.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aún no hay solicitudes de acceso.</p>
-  }
+  const columnas: ColumnDef<AccessRequest>[] = [
+    {
+      header: "Solicitante",
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.original.nombre}</div>
+          <div className="text-xs text-muted-foreground">{row.original.email}</div>
+        </div>
+      ),
+    },
+    { header: "Empresa", cell: ({ row }) => row.original.empresa_nombre },
+    { header: "RUC", cell: ({ row }) => <span className="font-mono text-xs">{row.original.ruc}</span> },
+    {
+      header: "Estado",
+      cell: ({ row }) => (
+        <div>
+          <StatusBadge value={row.original.status} map={ESTADO} />
+          {row.original.status === "rechazado" && row.original.rejection_reason ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">{row.original.rejection_reason}</p>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      header: "",
+      id: "acciones",
+      cell: ({ row }) =>
+        row.original.status === "pendiente" ? (
+          <div className="flex justify-end gap-2">
+            <Button size="sm" onClick={() => aprobar(row.original)} disabled={revisar.isPending}>
+              <Check className="size-4" />
+              Aprobar
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setRechazando(row.original)
+                setMotivo("")
+              }}
+              disabled={revisar.isPending}
+            >
+              <X className="size-4" />
+              Rechazar
+            </Button>
+          </div>
+        ) : null,
+    },
+  ]
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        {pendientes} pendiente(s) de {solicitudes.length} solicitud(es).
-      </p>
+      <AsyncBoundary
+        query={solicitudesQuery}
+        isEmpty={(d) => d.length === 0}
+        empty={
+          <EmptyState
+            icon={Inbox}
+            title="Sin solicitudes de acceso"
+            description="Cuando alguien solicite acceso a la plataforma, aparecerá aquí para revisarla."
+          />
+        }
+      >
+        {(data) => {
+          const solicitudes = [...data].sort((a, b) => b.id - a.id)
+          const pendientes = solicitudes.filter((s) => s.status === "pendiente").length
+          return (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {pendientes} pendiente(s) de {solicitudes.length} solicitud(es).
+              </p>
+              <Card>
+                <CardContent className="p-0">
+                  <DataTable columns={columnas} data={solicitudes} getRowId={(s) => String(s.id)} />
+                </CardContent>
+              </Card>
+            </>
+          )
+        }}
+      </AsyncBoundary>
 
-      <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b text-left text-muted-foreground">
-              <tr>
-                <th className="p-3">Solicitante</th>
-                <th className="p-3">Empresa</th>
-                <th className="p-3">RUC</th>
-                <th className="p-3">Estado</th>
-                <th className="p-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {solicitudes.map((s) => (
-                <tr key={s.id} className="border-b last:border-0">
-                  <td className="p-3">
-                    <div className="font-medium">{s.nombre}</div>
-                    <div className="text-xs text-muted-foreground">{s.email}</div>
-                  </td>
-                  <td className="p-3">{s.empresa_nombre}</td>
-                  <td className="p-3 font-mono text-xs">{s.ruc}</td>
-                  <td className="p-3">
-                    <EstadoBadge status={s.status} />
-                    {s.status === "rechazado" && s.rejection_reason && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">{s.rejection_reason}</p>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {s.status === "pendiente" && (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => aprobar(s)}
-                          disabled={revisar.isPending}
-                        >
-                          Aprobar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setRechazando(s)
-                            setMotivo("")
-                          }}
-                          disabled={revisar.isPending}
-                        >
-                          Rechazar
-                        </Button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-
-      {/* Modal de rechazo con motivo */}
-      {rechazando && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
-          onClick={() => setRechazando(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-semibold">Rechazar solicitud</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Rechazando la solicitud de <strong>{rechazando.nombre}</strong> (
-              {rechazando.empresa_nombre}).
+      <Drawer
+        open={rechazando != null}
+        onClose={() => setRechazando(null)}
+        title="Rechazar solicitud"
+        footer={
+          rechazando ? (
+            <Button
+              variant="destructive"
+              disabled={revisar.isPending}
+              onClick={() =>
+                revisar.mutate({
+                  id: rechazando.id,
+                  status: "rechazado",
+                  motivo: motivo.trim() || undefined,
+                })
+              }
+            >
+              <X className="size-4" />
+              {revisar.isPending ? "Rechazando…" : "Rechazar solicitud"}
+            </Button>
+          ) : null
+        }
+      >
+        {rechazando ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Rechazando la solicitud de <strong>{rechazando.nombre}</strong> ({rechazando.empresa_nombre}).
             </p>
-            <div className="mt-4 space-y-1.5">
-              <Label htmlFor="motivo">Motivo (opcional)</Label>
+            <FormField label="Motivo (opcional)" htmlFor="motivo">
               <textarea
                 id="motivo"
                 value={motivo}
@@ -164,28 +186,10 @@ export function SolicitudesPage() {
                 placeholder="Ej. RUC no válido, información incompleta…"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setRechazando(null)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={revisar.isPending}
-                onClick={() =>
-                  revisar.mutate({
-                    id: rechazando.id,
-                    status: "rechazado",
-                    motivo: motivo.trim() || undefined,
-                  })
-                }
-              >
-                {revisar.isPending ? "Rechazando…" : "Rechazar solicitud"}
-              </Button>
-            </div>
+            </FormField>
           </div>
-        </div>
-      )}
+        ) : null}
+      </Drawer>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ShieldAlert } from "lucide-react"
+import { ShieldAlert, Trash2, UserPlus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -12,22 +12,25 @@ import {
 } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Button } from "@/shared/ui/button"
-import { confirmar } from "@/shared/ui/confirm"
 import { Card, CardContent } from "@/shared/ui/card"
+import { confirmar } from "@/shared/ui/confirm"
+import { DataTable } from "@/shared/ui/data-table"
 import { EmptyState } from "@/shared/ui/empty-state"
+import { FormField } from "@/shared/ui/form-field"
 import { Input } from "@/shared/ui/input"
-import { Label } from "@/shared/ui/label"
 import { Select } from "@/shared/ui/select"
-import { Spinner } from "@/shared/ui/spinner"
 
+import type { Member } from "@/features/admin/api"
+import type { ColumnDef } from "@tanstack/react-table"
 import type { FormEvent } from "react"
 
 export function MiembrosPage() {
   const companyId = useActiveCompany((s) => s.companyId)
   const queryClient = useQueryClient()
 
-  const membersQuery = useQuery({
+  const members = useQuery({
     queryKey: ["admin", "members", companyId],
     queryFn: listMembers,
     enabled: companyId != null,
@@ -38,8 +41,7 @@ export function MiembrosPage() {
   const [nombre, setNombre] = useState("")
   const [roleKey, setRoleKey] = useState("operador")
 
-  const invalidar = () =>
-    queryClient.invalidateQueries({ queryKey: ["admin", "members"] })
+  const invalidar = () => queryClient.invalidateQueries({ queryKey: ["admin", "members"] })
 
   const invitar = useMutation({
     mutationFn: () => inviteMember({ email, nombre, role_key: roleKey }),
@@ -51,7 +53,6 @@ export function MiembrosPage() {
     },
     onError: (err) => toast.error(apiError(err, "No se pudo invitar")),
   })
-
   const cambiarRol = useMutation({
     mutationFn: (v: { id: number; role: string }) => changeMemberRole(v.id, v.role),
     onSuccess: () => {
@@ -60,7 +61,6 @@ export function MiembrosPage() {
     },
     onError: (err) => toast.error(apiError(err, "No se pudo cambiar el rol")),
   })
-
   const quitar = useMutation({
     mutationFn: removeMember,
     onSuccess: () => {
@@ -75,43 +75,67 @@ export function MiembrosPage() {
     invitar.mutate()
   }
 
-  if (membersQuery.isLoading) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner />
-      </div>
-    )
+  const remover = async (m: Member) => {
+    const ok = await confirmar({
+      title: `¿Remover a ${m.nombre}?`,
+      description: "Perderá el acceso a esta empresa.",
+      confirmLabel: "Remover",
+      destructive: true,
+    })
+    if (ok) quitar.mutate(m.membership_id)
   }
-  if (membersQuery.isError) {
-    return (
-      <EmptyState
-        icon={ShieldAlert}
-        title="Sin permisos para gestionar miembros"
-        description="No tienes permisos para gestionar los miembros de esta empresa."
-      />
-    )
-  }
+
+  const columnas: ColumnDef<Member>[] = [
+    { header: "Nombre", cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span> },
+    { header: "Email", cell: ({ row }) => row.original.email },
+    {
+      header: "Rol",
+      cell: ({ row }) => (
+        <Select
+          className="max-w-[12rem]"
+          value={row.original.role_key}
+          onChange={(e) => cambiarRol.mutate({ id: row.original.membership_id, role: e.target.value })}
+        >
+          {(roles ?? []).map((r) => (
+            <option key={r.key} value={r.key}>
+              {r.nombre}
+            </option>
+          ))}
+        </Select>
+      ),
+    },
+    {
+      header: "",
+      id: "acciones",
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <Button size="sm" variant="ghost" onClick={() => remover(row.original)}>
+            <Trash2 className="size-4" />
+            Remover
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Gestiona quién tiene acceso a la <span className="font-medium text-foreground">empresa
-        activa</span>: invita personas, cambia su rol o remuévelas. Para asignar acceso a varias
-        empresas cliente a la vez, usa la pestaña <span className="font-medium">Equipo</span>.
+        Gestiona quién tiene acceso a la <span className="font-medium text-foreground">empresa activa</span>:
+        invita personas, cambia su rol o remuévelas. Para asignar acceso a varias empresas cliente a la
+        vez, usa la pestaña <span className="font-medium">Equipo</span>.
       </p>
+
       <Card>
         <CardContent className="pt-5">
           <form onSubmit={onInvitar} className="grid gap-3 sm:grid-cols-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+            <FormField label="Email" htmlFor="email">
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="nombre">Nombre</Label>
+            </FormField>
+            <FormField label="Nombre" htmlFor="nombre">
               <Input id="nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="rol">Rol</Label>
+            </FormField>
+            <FormField label="Rol" htmlFor="rol">
               <Select id="rol" value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
                 {(roles ?? []).map((r) => (
                   <option key={r.key} value={r.key}>
@@ -119,9 +143,10 @@ export function MiembrosPage() {
                   </option>
                 ))}
               </Select>
-            </div>
+            </FormField>
             <div className="flex items-end">
               <Button type="submit" disabled={invitar.isPending}>
+                <UserPlus className="size-4" />
                 Invitar
               </Button>
             </div>
@@ -129,60 +154,32 @@ export function MiembrosPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b text-left text-muted-foreground">
-              <tr>
-                <th className="p-3">Nombre</th>
-                <th className="p-3">Email</th>
-                <th className="p-3">Rol</th>
-                <th className="p-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(membersQuery.data ?? []).map((m) => (
-                <tr key={m.membership_id} className="border-b last:border-0">
-                  <td className="p-3 font-medium">{m.nombre}</td>
-                  <td className="p-3">{m.email}</td>
-                  <td className="p-3">
-                    <Select
-                      className="max-w-[12rem]"
-                      value={m.role_key}
-                      onChange={(e) =>
-                        cambiarRol.mutate({ id: m.membership_id, role: e.target.value })
-                      }
-                    >
-                      {(roles ?? []).map((r) => (
-                        <option key={r.key} value={r.key}>
-                          {r.nombre}
-                        </option>
-                      ))}
-                    </Select>
-                  </td>
-                  <td className="p-3 text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={async () => {
-                        const ok = await confirmar({
-                          title: `¿Remover a ${m.nombre}?`,
-                          description: "Perderá el acceso a esta empresa.",
-                          confirmLabel: "Remover",
-                          destructive: true,
-                        })
-                        if (ok) quitar.mutate(m.membership_id)
-                      }}
-                    >
-                      Remover
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+      <AsyncBoundary
+        query={members}
+        isEmpty={(d) => d.length === 0}
+        error={
+          <EmptyState
+            icon={ShieldAlert}
+            title="Sin permisos para gestionar miembros"
+            description="No tienes permisos para gestionar los miembros de esta empresa."
+          />
+        }
+        empty={
+          <EmptyState
+            icon={UserPlus}
+            title="Sin miembros todavía"
+            description="Invita a la primera persona con el formulario de arriba."
+          />
+        }
+      >
+        {(data) => (
+          <Card>
+            <CardContent className="p-0">
+              <DataTable columns={columnas} data={data} getRowId={(m) => String(m.membership_id)} />
+            </CardContent>
+          </Card>
+        )}
+      </AsyncBoundary>
     </div>
   )
 }

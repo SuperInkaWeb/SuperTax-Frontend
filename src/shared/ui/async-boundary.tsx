@@ -14,6 +14,8 @@ interface AsyncBoundaryProps<T> {
   empty?: ReactNode
   isEmpty?: (data: T) => boolean
   loading?: ReactNode
+  /** Reemplaza el error genérico (p. ej. un 403 "sin permisos", donde reintentar no aplica). */
+  error?: ReactNode
 }
 
 /**
@@ -27,19 +29,22 @@ export function AsyncBoundary<T>({
   empty,
   isEmpty,
   loading,
+  error,
 }: AsyncBoundaryProps<T>) {
   if (query.isError) {
     return (
-      <EmptyState
-        icon={AlertTriangle}
-        title="No se pudo cargar"
-        description="Ocurrió un error al consultar los datos. Intenta de nuevo."
-        action={
-          <Button variant="outline" onClick={() => void query.refetch()}>
-            Reintentar
-          </Button>
-        }
-      />
+      error ?? (
+        <EmptyState
+          icon={AlertTriangle}
+          title="No se pudo cargar"
+          description="Ocurrió un error al consultar los datos. Intenta de nuevo."
+          action={
+            <Button variant="outline" onClick={() => void query.refetch()}>
+              Reintentar
+            </Button>
+          }
+        />
+      )
     )
   }
   // `data` es undefined mientras carga y también en consultas deshabilitadas.

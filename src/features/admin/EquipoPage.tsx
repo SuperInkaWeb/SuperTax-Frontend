@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Building2 } from "lucide-react"
+import { Building2, Power, PowerOff, UserPlus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -11,22 +11,30 @@ import {
   setMembershipStatus,
 } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
-import { Badge } from "@/shared/ui/badge"
+import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
+import { DataTable } from "@/shared/ui/data-table"
 import { EmptyState } from "@/shared/ui/empty-state"
+import { FormField } from "@/shared/ui/form-field"
 import { Input } from "@/shared/ui/input"
-import { Label } from "@/shared/ui/label"
 import { Select } from "@/shared/ui/select"
-import { Spinner } from "@/shared/ui/spinner"
+import { StatusBadge, type StatusMeta } from "@/shared/ui/status-badge"
 
+import type { TeamMember } from "@/features/admin/api"
+import type { ColumnDef } from "@tanstack/react-table"
 import type { FormEvent } from "react"
+
+const ACCESO: Record<string, StatusMeta> = {
+  activo: { label: "Activo", tone: "success" },
+  inactivo: { label: "Sin acceso", tone: "danger" },
+}
 
 export function EquipoPage() {
   const queryClient = useQueryClient()
 
-  const companiesQuery = useQuery({ queryKey: ["team", "companies"], queryFn: listAdminCompanies })
-  const membersQuery = useQuery({ queryKey: ["team", "members"], queryFn: listTeamMembers })
+  const companies = useQuery({ queryKey: ["team", "companies"], queryFn: listAdminCompanies })
+  const members = useQuery({ queryKey: ["team", "members"], queryFn: listTeamMembers })
   const { data: roles } = useQuery({ queryKey: ["admin", "roles"], queryFn: listRoles })
 
   const [email, setEmail] = useState("")
@@ -37,8 +45,7 @@ export function EquipoPage() {
   const invalidar = () => queryClient.invalidateQueries({ queryKey: ["team", "members"] })
 
   const asignar = useMutation({
-    mutationFn: () =>
-      assignToCompanies({ email, nombre, role_key: roleKey, company_ids: seleccion }),
+    mutationFn: () => assignToCompanies({ email, nombre, role_key: roleKey, company_ids: seleccion }),
     onSuccess: (r) => {
       const extra = r.ya_existentes.length ? ` — ${r.ya_existentes.length} ya la(s) tenía` : ""
       toast.success(`Acceso asignado a ${r.asignadas.length} empresa(s)${extra}`)
@@ -51,181 +58,162 @@ export function EquipoPage() {
   })
 
   const cambiarEstado = useMutation({
-    mutationFn: (v: { id: number; status: "activo" | "inactivo" }) =>
-      setMembershipStatus(v.id, v.status),
+    mutationFn: (v: { id: number; status: "activo" | "inactivo" }) => setMembershipStatus(v.id, v.status),
     onSuccess: () => invalidar(),
     onError: (e) => toast.error(apiError(e, "No se pudo cambiar el acceso")),
   })
 
-  function toggleEmpresa(id: number) {
+  const toggleEmpresa = (id: number) =>
     setSeleccion((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }
 
-  function onAsignar(e: FormEvent) {
-    e.preventDefault()
-    if (seleccion.length === 0) {
-      toast.error("Selecciona al menos una empresa")
-      return
-    }
-    asignar.mutate()
-  }
-
-  if (companiesQuery.isLoading || membersQuery.isLoading) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner />
-      </div>
-    )
-  }
-
-  const empresas = companiesQuery.data ?? []
-  if (empresas.length === 0) {
-    return (
-      <EmptyState
-        icon={Building2}
-        title="No administras ninguna empresa"
-        description="Esta sección es para quienes gestionan el acceso de uno o más clientes."
-      />
-    )
-  }
-
-  const todasSeleccionadas = seleccion.length === empresas.length
-  const miembros = membersQuery.data ?? []
+  const columnas: ColumnDef<TeamMember>[] = [
+    {
+      header: "Persona",
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.original.nombre}</div>
+          <div className="text-muted-foreground">{row.original.email}</div>
+        </div>
+      ),
+    },
+    {
+      header: "Accesos por cliente",
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-1.5">
+          {row.original.memberships.map((ms) => {
+            const activo = ms.status === "activo"
+            return (
+              <div key={ms.membership_id} className="flex items-center gap-2">
+                <span className="min-w-[10rem] truncate">{ms.razon_social}</span>
+                <StatusBadge value={ms.status} map={ACCESO} />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={cambiarEstado.isPending}
+                  onClick={() =>
+                    cambiarEstado.mutate({ id: ms.membership_id, status: activo ? "inactivo" : "activo" })
+                  }
+                >
+                  {activo ? <PowerOff className="size-4" /> : <Power className="size-4" />}
+                  {activo ? "Desactivar" : "Activar"}
+                </Button>
+              </div>
+            )
+          })}
+        </div>
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Asigna a una persona el acceso a <span className="font-medium text-foreground">varias
-        empresas cliente</span> a la vez y actívalo o desactívalo por cliente. Para gestionar solo
-        la empresa activa, usa la pestaña <span className="font-medium">Miembros</span>.
+        Asigna a una persona el acceso a <span className="font-medium text-foreground">varias empresas
+        cliente</span> a la vez y actívalo o desactívalo por cliente. Para gestionar solo la empresa
+        activa, usa la pestaña <span className="font-medium">Miembros</span>.
       </p>
-      <Card>
-        <CardContent className="pt-5">
-          <form onSubmit={onAsignar} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="team-email">Email</Label>
-                <Input
-                  id="team-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="team-nombre">Nombre</Label>
-                <Input
-                  id="team-nombre"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="team-rol">Rol</Label>
-                <Select id="team-rol" value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
-                  {(roles ?? []).map((r) => (
-                    <option key={r.key} value={r.key}>
-                      {r.nombre}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  Clientes ({seleccion.length} seleccionados)
-                </span>
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => setSeleccion(todasSeleccionadas ? [] : empresas.map((c) => c.id))}
-                >
-                  {todasSeleccionadas ? "Quitar todos" : "Seleccionar todos"}
-                </button>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {empresas.map((c) => (
-                  <label
-                    key={c.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      className="size-4"
-                      checked={seleccion.includes(c.id)}
-                      onChange={() => toggleEmpresa(c.id)}
-                    />
-                    <span className="truncate">{c.razon_social}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <Button type="submit" disabled={asignar.isPending}>
-              Asignar acceso
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b text-left text-muted-foreground">
-              <tr>
-                <th className="p-3">Persona</th>
-                <th className="p-3">Accesos por cliente</th>
-              </tr>
-            </thead>
-            <tbody>
-              {miembros.map((m) => (
-                <tr key={m.user_id} className="border-b align-top last:border-0">
-                  <td className="p-3">
-                    <div className="font-medium">{m.nombre}</div>
-                    <div className="text-muted-foreground">{m.email}</div>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex flex-col gap-1.5">
-                      {m.memberships.map((ms) => (
-                        <div key={ms.membership_id} className="flex items-center gap-2">
-                          <span className="min-w-[10rem] truncate">{ms.razon_social}</span>
-                          <Badge tone={ms.status === "activo" ? "success" : "danger"}>
-                            {ms.status === "activo" ? "Activo" : "Sin acceso"}
-                          </Badge>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={cambiarEstado.isPending}
-                            onClick={() =>
-                              cambiarEstado.mutate({
-                                id: ms.membership_id,
-                                status: ms.status === "activo" ? "inactivo" : "activo",
-                              })
-                            }
-                          >
-                            {ms.status === "activo" ? "Desactivar" : "Activar"}
-                          </Button>
-                        </div>
-                      ))}
+      <AsyncBoundary
+        query={companies}
+        isEmpty={(d) => d.length === 0}
+        empty={
+          <EmptyState
+            icon={Building2}
+            title="No administras ninguna empresa"
+            description="Esta sección es para quienes gestionan el acceso de uno o más clientes."
+          />
+        }
+      >
+        {(empresas) => {
+          const todasSeleccionadas = seleccion.length === empresas.length
+          const onAsignar = (e: FormEvent) => {
+            e.preventDefault()
+            if (seleccion.length === 0) {
+              toast.error("Selecciona al menos una empresa")
+              return
+            }
+            asignar.mutate()
+          }
+          return (
+            <>
+              <Card>
+                <CardContent className="pt-5">
+                  <form onSubmit={onAsignar} className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <FormField label="Email" htmlFor="team-email">
+                        <Input id="team-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                      </FormField>
+                      <FormField label="Nombre" htmlFor="team-nombre">
+                        <Input id="team-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+                      </FormField>
+                      <FormField label="Rol" htmlFor="team-rol">
+                        <Select id="team-rol" value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
+                          {(roles ?? []).map((r) => (
+                            <option key={r.key} value={r.key}>
+                              {r.nombre}
+                            </option>
+                          ))}
+                        </Select>
+                      </FormField>
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {miembros.length === 0 && (
-                <tr>
-                  <td colSpan={2} className="p-3 text-muted-foreground">
-                    Aún no hay personas asignadas a tus clientes.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Clientes ({seleccion.length} seleccionados)</span>
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => setSeleccion(todasSeleccionadas ? [] : empresas.map((c) => c.id))}
+                        >
+                          {todasSeleccionadas ? "Quitar todos" : "Seleccionar todos"}
+                        </button>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {empresas.map((c) => (
+                          <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm">
+                            <input
+                              type="checkbox"
+                              className="size-4"
+                              checked={seleccion.includes(c.id)}
+                              onChange={() => toggleEmpresa(c.id)}
+                            />
+                            <span className="truncate">{c.razon_social}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Button type="submit" disabled={asignar.isPending}>
+                      <UserPlus className="size-4" />
+                      Asignar acceso
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <AsyncBoundary
+                query={members}
+                isEmpty={(d) => d.length === 0}
+                empty={
+                  <EmptyState
+                    icon={UserPlus}
+                    title="Sin personas asignadas"
+                    description="Aún no hay personas asignadas a tus clientes. Usa el formulario de arriba."
+                  />
+                }
+              >
+                {(miembros) => (
+                  <Card>
+                    <CardContent className="p-0">
+                      <DataTable columns={columnas} data={miembros} getRowId={(m) => String(m.user_id)} />
+                    </CardContent>
+                  </Card>
+                )}
+              </AsyncBoundary>
+            </>
+          )
+        }}
+      </AsyncBoundary>
     </div>
   )
 }
