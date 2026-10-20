@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom"
 
 import { Sidebar, SidebarDrawer } from "@/app/layout/Sidebar"
 import { Topbar } from "@/app/layout/Topbar"
+import { ConexionesDrawer } from "@/features/conexiones/ConexionesPage"
 import { ConfirmHost } from "@/shared/ui/confirm"
 
 export function AppShell() {
@@ -19,6 +20,7 @@ export function AppShell() {
         </main>
       </div>
       <ConfirmHost />
+      <ConexionesDrawer />
     </div>
   )
 }

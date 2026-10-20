@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
+import { useConexiones } from "@/features/conexiones/store"
 import { listMailboxes } from "@/features/correos/api"
 import {
   getCredentials as getSireCred,
@@ -22,10 +23,10 @@ import { useAuthStore } from "@/shared/stores/auth"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Drawer } from "@/shared/ui/drawer"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { FormField } from "@/shared/ui/form-field"
 import { Input } from "@/shared/ui/input"
-import { PageHeader } from "@/shared/ui/page-header"
 
 function Configurado({ ok }: { ok: boolean }) {
   return ok ? (
@@ -238,7 +239,7 @@ function BuzonesCard() {
   )
 }
 
-export function ConexionesPage() {
+function ConexionesPanel() {
   const companyId = useActiveCompany((s) => s.companyId)
   const user = useAuthStore((s) => s.user)
   const empresa = user?.companies.find((c) => c.id === companyId)
@@ -259,12 +260,11 @@ export function ConexionesPage() {
   const correos = modulos.includes("correos")
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Conexiones"
-        description="Gestiona en un solo lugar las credenciales e integraciones de todos tus módulos. Las credenciales SOL se configuran una vez y las comparten SUNAT y SIRE."
-      />
-
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Gestiona en un solo lugar las credenciales e integraciones de tus módulos. Las credenciales
+        SOL se configuran una vez y las comparten SUNAT y SIRE.
+      </p>
       {!sunat && !sire && !correos ? (
         <EmptyState
           icon={KeyRound}
@@ -272,13 +272,23 @@ export function ConexionesPage() {
           description="Esta empresa no tiene módulos que requieran credenciales o conexiones."
         />
       ) : (
-        <div className="space-y-4">
+        <>
           {(sunat || sire) && <SolCard sunat={sunat} sire={sire} ruc={empresa.ruc} />}
           {sire && <ApiSireCard />}
           {sunat && <DriveCard />}
           {correos && <BuzonesCard />}
-        </div>
+        </>
       )}
     </div>
+  )
+}
+
+/** Overlay global de Conexiones (se monta una vez en el AppShell). */
+export function ConexionesDrawer() {
+  const { open, cerrar } = useConexiones()
+  return (
+    <Drawer open={open} onClose={cerrar} title="Conexiones" className="max-w-2xl">
+      {open ? <ConexionesPanel /> : null}
+    </Drawer>
   )
 }

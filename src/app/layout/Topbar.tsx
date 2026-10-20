@@ -1,15 +1,17 @@
-import { Menu, Moon, Sun } from "lucide-react"
+import { Menu, Moon, Plug, Sun } from "lucide-react"
 
 import { CompanySwitcher } from "@/app/layout/CompanySwitcher"
 import { GlobalSearch } from "@/app/layout/GlobalSearch"
 import { NotificationsBell } from "@/app/layout/NotificationsBell"
 import { UserMenu } from "@/app/layout/UserMenu"
+import { useConexiones } from "@/features/conexiones/store"
 import { useTheme } from "@/shared/stores/theme"
 import { Button } from "@/shared/ui/button"
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
   const theme = useTheme((s) => s.theme)
   const toggleTheme = useTheme((s) => s.toggle)
+  const abrirConexiones = useConexiones((s) => s.abrir)
 
   return (
     <header className="flex h-16 items-center gap-3 border-b bg-card px-4 sm:px-6">
@@ -26,6 +28,9 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
 
       <div className="ml-auto flex items-center gap-2">
         <GlobalSearch />
+        <Button variant="ghost" size="icon" aria-label="Conexiones" title="Conexiones" onClick={abrirConexiones}>
+          <Plug className="size-4" />
+        </Button>
         <NotificationsBell />
         <Button variant="ghost" size="icon" aria-label="Cambiar tema" onClick={toggleTheme}>
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}

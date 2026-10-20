@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { useConexiones } from "@/features/conexiones/store"
 import { getCredentials, setCredentials } from "@/features/sire/api"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
@@ -83,6 +84,14 @@ export function CredencialesPage() {
 
   return (
     <div className="max-w-xl space-y-6">
+      <Alert>
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+          <span>También puedes gestionar estas credenciales desde el panel central de Conexiones.</span>
+          <Button variant="outline" size="sm" onClick={() => useConexiones.getState().abrir()}>
+            Abrir Conexiones
+          </Button>
+        </AlertDescription>
+      </Alert>
       <div>
         <h2 className="flex items-center gap-2 text-xl font-semibold">
           <KeyRound className="size-5" />
