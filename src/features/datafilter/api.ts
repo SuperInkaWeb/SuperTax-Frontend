@@ -56,6 +56,91 @@ export async function uploadDataset(
   return data
 }
 
+interface UploadInitResponse {
+  mode: "single" | "multipart"
+  dataset_id?: number
+  part_size?: number
+  parts?: { part_number: number; url: string }[]
+}
+
+/** Sube una parte DIRECTO a R2 con XHR (da progreso real) y devuelve su ETag. */
+function putParteAR2(url: string, blob: Blob, onProgress: (loaded: number) => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("PUT", url, true)
+    xhr.upload.onprogress = (e) => onProgress(e.loaded)
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const etag = xhr.getResponseHeader("ETag")
+        if (etag) resolve(etag)
+        else reject(new Error("R2 no devolvió ETag (revisa el CORS del bucket: ExposeHeaders ETag)"))
+      } else {
+        reject(new Error(`Error al subir una parte (HTTP ${xhr.status})`))
+      }
+    }
+    xhr.onerror = () => reject(new Error("Fallo de red al subir una parte a R2"))
+    xhr.send(blob)
+  })
+}
+
+/**
+ * Sube un dataset por el mejor camino: en producción, DIRECTO a R2 por partes
+ * (multipart) para evitar el límite/timeout del hosting con archivos de varios GB;
+ * en dev/local, por el backend. El progreso agrega el avance de todas las partes.
+ */
+export async function uploadDatasetSmart(
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<DatasetSummary> {
+  const { data: init } = await api.post<UploadInitResponse>(`${BASE}/datasets/upload/init`, {
+    filename: file.name,
+    size_bytes: file.size,
+  })
+
+  if (init.mode !== "multipart" || !init.dataset_id || !init.part_size || !init.parts) {
+    return uploadDataset(file, onProgress) // dev/local o respuesta incompleta
+  }
+
+  const datasetId = init.dataset_id
+  const partSize = init.part_size
+  const parts = init.parts
+  const avance: number[] = Array.from({ length: parts.length }, () => 0)
+  const reportar = () => {
+    if (!onProgress) return
+    const subido = avance.reduce((a, b) => a + b, 0)
+    onProgress(Math.min(99, Math.round((subido / file.size) * 100)))
+  }
+
+  try {
+    const CONCURRENCIA = 3
+    const completadas: { part_number: number; etag: string }[] = []
+    let siguiente = 0
+    const worker = async () => {
+      while (siguiente < parts.length) {
+        const i = siguiente++
+        const inicio = i * partSize
+        const trozo = file.slice(inicio, Math.min(inicio + partSize, file.size))
+        const etag = await putParteAR2(parts[i].url, trozo, (loaded) => {
+          avance[i] = loaded
+          reportar()
+        })
+        completadas.push({ part_number: parts[i].part_number, etag })
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCIA, parts.length) }, worker))
+
+    const { data } = await api.post<DatasetSummary>(`${BASE}/datasets/upload/complete`, {
+      dataset_id: datasetId,
+      parts: completadas,
+    })
+    onProgress?.(100)
+    return data
+  } catch (e) {
+    await api.post(`${BASE}/datasets/upload/abort`, { dataset_id: datasetId }).catch(() => {})
+    throw e
+  }
+}
+
 export async function deleteDataset(datasetId: number): Promise<void> {
   await api.delete(`${BASE}/datasets/${datasetId}`)
 }

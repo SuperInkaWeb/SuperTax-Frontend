@@ -9,7 +9,7 @@ import {
   downloadDataset,
   getDataset,
   listDatasets,
-  uploadDataset,
+  uploadDatasetSmart,
 } from "@/features/datafilter/api"
 import { DataGrid } from "@/features/datafilter/components/DataGrid"
 import { DatasetList } from "@/features/datafilter/components/DatasetList"
@@ -203,7 +203,7 @@ export function WorkspacePage() {
     mutationFn: async (files: File[]) => {
       for (const file of files) {
         setProgreso(0)
-        await uploadDataset(file, setProgreso)
+        await uploadDatasetSmart(file, setProgreso)
       }
     },
     onSuccess: () => {
