@@ -183,7 +183,28 @@ async function descargarBlob(path: string, body: unknown, nombre: string): Promi
   URL.revokeObjectURL(url)
 }
 
-export function downloadDataset(datasetId: number, request: DownloadRequest): Promise<void> {
+interface DownloadPresign {
+  mode: "single" | "r2"
+  url?: string
+  filename?: string
+}
+
+export async function downloadDataset(datasetId: number, request: DownloadRequest): Promise<void> {
+  // Resultado grande: baja DIRECTO de R2 por URL firmada (evita el borde del hosting).
+  // R2 sirve el objeto como adjunto con su nombre (Content-Disposition en la URL).
+  const { data } = await api.post<DownloadPresign>(
+    `${BASE}/datasets/${datasetId}/download/presign`, request,
+  )
+  if (data.mode === "r2" && data.url) {
+    const a = document.createElement("a")
+    a.href = data.url
+    if (data.filename) a.download = data.filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    return
+  }
+  // dev/local: descarga clásica por el backend
   return descargarBlob(
     `${BASE}/datasets/${datasetId}/download`, request, `filtrado.${request.format}`,
   )
