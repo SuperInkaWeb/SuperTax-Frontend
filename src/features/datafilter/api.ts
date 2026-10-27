@@ -189,12 +189,16 @@ interface DownloadPresign {
   filename?: string
 }
 
-export async function downloadDataset(datasetId: number, request: DownloadRequest): Promise<void> {
-  // Resultado grande: baja DIRECTO de R2 por URL firmada (evita el borde del hosting).
-  // R2 sirve el objeto como adjunto con su nombre (Content-Disposition en la URL).
-  const { data } = await api.post<DownloadPresign>(
-    `${BASE}/datasets/${datasetId}/download/presign`, request,
-  )
+/**
+ * Descarga pidiendo primero una URL firmada: si el backend responde `r2`, baja el
+ * resultado DIRECTO de R2 (evita el borde del hosting con resultados grandes); si
+ * responde `single` (dev/local), cae a la descarga clásica por blob. R2 sirve el
+ * objeto como adjunto con su nombre (Content-Disposition en la URL firmada).
+ */
+async function descargarConPresign(
+  presignPath: string, blobPath: string, body: unknown, nombreFallback: string,
+): Promise<void> {
+  const { data } = await api.post<DownloadPresign>(presignPath, body)
   if (data.mode === "r2" && data.url) {
     const a = document.createElement("a")
     a.href = data.url
@@ -204,9 +208,14 @@ export async function downloadDataset(datasetId: number, request: DownloadReques
     a.remove()
     return
   }
-  // dev/local: descarga clásica por el backend
-  return descargarBlob(
-    `${BASE}/datasets/${datasetId}/download`, request, `filtrado.${request.format}`,
+  return descargarBlob(blobPath, body, nombreFallback)
+}
+
+export function downloadDataset(datasetId: number, request: DownloadRequest): Promise<void> {
+  return descargarConPresign(
+    `${BASE}/datasets/${datasetId}/download/presign`,
+    `${BASE}/datasets/${datasetId}/download`,
+    request, `filtrado.${request.format}`,
   )
 }
 
@@ -235,8 +244,10 @@ export function downloadComputed(
   datasetId: number,
   request: ComputeDownloadRequest,
 ): Promise<void> {
-  return descargarBlob(
-    `${BASE}/datasets/${datasetId}/compute/download`, request, `columnas.${request.format}`,
+  return descargarConPresign(
+    `${BASE}/datasets/${datasetId}/compute/download/presign`,
+    `${BASE}/datasets/${datasetId}/compute/download`,
+    request, `columnas.${request.format}`,
   )
 }
 
@@ -265,8 +276,10 @@ export function downloadReplace(
   datasetId: number,
   request: ReplaceDownloadRequest,
 ): Promise<void> {
-  return descargarBlob(
-    `${BASE}/datasets/${datasetId}/replace/download`, request, `corregido.${request.format}`,
+  return descargarConPresign(
+    `${BASE}/datasets/${datasetId}/replace/download/presign`,
+    `${BASE}/datasets/${datasetId}/replace/download`,
+    request, `corregido.${request.format}`,
   )
 }
 
@@ -295,8 +308,10 @@ export function downloadDedupe(
   datasetId: number,
   request: DedupeDownloadRequest,
 ): Promise<void> {
-  return descargarBlob(
-    `${BASE}/datasets/${datasetId}/dedupe/download`, request, `sin_duplicados.${request.format}`,
+  return descargarConPresign(
+    `${BASE}/datasets/${datasetId}/dedupe/download/presign`,
+    `${BASE}/datasets/${datasetId}/dedupe/download`,
+    request, `sin_duplicados.${request.format}`,
   )
 }
 
@@ -322,8 +337,10 @@ export async function savePivot(
 }
 
 export function downloadPivot(datasetId: number, request: PivotDownloadRequest): Promise<void> {
-  return descargarBlob(
-    `${BASE}/datasets/${datasetId}/pivot/download`, request, `reporte.${request.format}`,
+  return descargarConPresign(
+    `${BASE}/datasets/${datasetId}/pivot/download/presign`,
+    `${BASE}/datasets/${datasetId}/pivot/download`,
+    request, `reporte.${request.format}`,
   )
 }
 
