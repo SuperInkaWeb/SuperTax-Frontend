@@ -39,6 +39,15 @@ export function MiembrosPage() {
   const { data: roles } = useQuery({ queryKey: ["admin", "roles"], queryFn: listRoles })
   const asignables = (roles ?? []).filter((r) => ROLES_ASIGNABLES.includes(r.key))
 
+  // Opciones del rol de una fila: solo los asignables (operador/asistente/consulta).
+  // Si el miembro tuviera un rol fuera de esos (p. ej. admin heredado), se incluye
+  // para que se vea su rol REAL, pero no se ofrece admin a los demás.
+  const opcionesRol = (actual: string) => {
+    if (ROLES_ASIGNABLES.includes(actual)) return asignables
+    const heredado = (roles ?? []).find((r) => r.key === actual)
+    return heredado ? [heredado, ...asignables] : asignables
+  }
+
   const [email, setEmail] = useState("")
   const [nombre, setNombre] = useState("")
   const [roleKey, setRoleKey] = useState("operador")
@@ -98,8 +107,7 @@ export function MiembrosPage() {
           value={row.original.role_key}
           onChange={(e) => cambiarRol.mutate({ id: row.original.membership_id, role: e.target.value })}
         >
-          {/* Todos los roles: así el rol REAL del miembro (p. ej. Admin) se ve bien. */}
-          {(roles ?? []).map((r) => (
+          {opcionesRol(row.original.role_key).map((r) => (
             <option key={r.key} value={r.key}>
               {r.nombre}
             </option>
