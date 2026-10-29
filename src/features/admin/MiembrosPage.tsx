@@ -98,7 +98,8 @@ export function MiembrosPage() {
           value={row.original.role_key}
           onChange={(e) => cambiarRol.mutate({ id: row.original.membership_id, role: e.target.value })}
         >
-          {asignables.map((r) => (
+          {/* Todos los roles: así el rol REAL del miembro (p. ej. Admin) se ve bien. */}
+          {(roles ?? []).map((r) => (
             <option key={r.key} value={r.key}>
               {r.nombre}
             </option>
