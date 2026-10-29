@@ -7,6 +7,7 @@ import {
   createCompany,
   disableModule,
   enableModule,
+  listAllEstudios,
   listCompanies,
   listCompanyModules,
   updateCompany,
@@ -21,6 +22,7 @@ import { Drawer } from "@/shared/ui/drawer"
 import { EmptyState } from "@/shared/ui/empty-state"
 import { FormField } from "@/shared/ui/form-field"
 import { Input } from "@/shared/ui/input"
+import { Select } from "@/shared/ui/select"
 import { Spinner } from "@/shared/ui/spinner"
 
 import type { Company } from "@/features/admin/api"
@@ -85,12 +87,20 @@ function FormularioEmpresa({
   const queryClient = useQueryClient()
   const [ruc, setRuc] = useState(empresa?.ruc ?? "")
   const [razonSocial, setRazonSocial] = useState(empresa?.razon_social ?? "")
+  const [estudioId, setEstudioId] = useState("")
+
+  // Al CREAR hay que asignar la empresa a un estudio (al editar no se cambia).
+  const { data: estudios } = useQuery({
+    queryKey: ["admin", "estudios-all"],
+    queryFn: listAllEstudios,
+    enabled: !empresa,
+  })
 
   const guardar = useMutation({
     mutationFn: () =>
       empresa
         ? updateCompany(empresa.id, { ruc, razon_social: razonSocial })
-        : createCompany({ ruc, razon_social: razonSocial }),
+        : createCompany({ ruc, razon_social: razonSocial, estudio_id: Number(estudioId) }),
     onSuccess: () => {
       toast.success(empresa ? "Empresa actualizada" : "Empresa creada")
       queryClient.invalidateQueries({ queryKey: ["admin", "companies"] })
@@ -113,7 +123,24 @@ function FormularioEmpresa({
       <FormField label="Razón social" htmlFor="emp-razon">
         <Input id="emp-razon" value={razonSocial} onChange={(e) => setRazonSocial(e.target.value)} required />
       </FormField>
-      <Button type="submit" disabled={guardar.isPending || !ruc || !razonSocial}>
+      {!empresa && (
+        <FormField label="Estudio dueño" htmlFor="emp-estudio">
+          <Select id="emp-estudio" value={estudioId} onChange={(e) => setEstudioId(e.target.value)} required>
+            <option value="" disabled>
+              Selecciona un estudio…
+            </option>
+            {(estudios ?? []).map((es) => (
+              <option key={es.id} value={es.id}>
+                {es.nombre} ({es.owner_email})
+              </option>
+            ))}
+          </Select>
+        </FormField>
+      )}
+      <Button
+        type="submit"
+        disabled={guardar.isPending || !ruc || !razonSocial || (!empresa && !estudioId)}
+      >
         <Save className="size-4" />
         {empresa ? "Guardar cambios" : "Crear empresa"}
       </Button>

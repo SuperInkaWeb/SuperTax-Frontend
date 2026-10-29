@@ -1,8 +1,9 @@
 import { useMutation } from "@tanstack/react-query"
+import { isAxiosError } from "axios"
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { createMyCompany } from "@/features/company/api"
+import { createMyCompany, solicitarAccesoEmpresa } from "@/features/company/api"
 import { apiError } from "@/shared/lib/api/error"
 import { getMe } from "@/shared/lib/api/me"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
@@ -20,6 +21,8 @@ export function AgregarEmpresaDialog({ onClose }: { onClose: () => void }) {
   const setCompanyId = useActiveCompany((s) => s.setCompanyId)
   const [ruc, setRuc] = useState("")
   const [razonSocial, setRazonSocial] = useState("")
+  // El RUC ya pertenece a otro estudio: en vez de crear, se ofrece solicitar acceso.
+  const [rucOcupado, setRucOcupado] = useState(false)
 
   const crear = useMutation({
     mutationFn: () => createMyCompany({ ruc, razon_social: razonSocial }),
@@ -31,7 +34,22 @@ export function AgregarEmpresaDialog({ onClose }: { onClose: () => void }) {
       toast.success("Empresa agregada. Un administrador activará sus módulos.")
       onClose()
     },
-    onError: (err) => toast.error(apiError(err, "No se pudo crear la empresa")),
+    onError: (err) => {
+      if (isAxiosError(err) && err.response?.status === 409) {
+        setRucOcupado(true)
+        return
+      }
+      toast.error(apiError(err, "No se pudo crear la empresa"))
+    },
+  })
+
+  const solicitar = useMutation({
+    mutationFn: () => solicitarAccesoEmpresa({ ruc }),
+    onSuccess: () => {
+      toast.success("Solicitud enviada al administrador del estudio dueño")
+      onClose()
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudo enviar la solicitud")),
   })
 
   function onSubmit(e: FormEvent) {
@@ -41,6 +59,11 @@ export function AgregarEmpresaDialog({ onClose }: { onClose: () => void }) {
       return
     }
     crear.mutate()
+  }
+
+  const onRucChange = (valor: string) => {
+    setRuc(valor.replace(/\D/g, ""))
+    setRucOcupado(false)
   }
 
   return (
@@ -64,7 +87,7 @@ export function AgregarEmpresaDialog({ onClose }: { onClose: () => void }) {
               id="nueva-ruc"
               inputMode="numeric"
               value={ruc}
-              onChange={(e) => setRuc(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => onRucChange(e.target.value)}
               maxLength={RUC_LENGTH}
               required
             />
@@ -79,13 +102,31 @@ export function AgregarEmpresaDialog({ onClose }: { onClose: () => void }) {
               required
             />
           </div>
+
+          {rucOcupado && (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              Ese RUC ya está registrado por otro estudio. Puedes{" "}
+              <span className="font-medium">solicitar acceso</span> a su administrador.
+            </p>
+          )}
+
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={crear.isPending}>
-              {crear.isPending ? "Creando…" : "Crear"}
-            </Button>
+            {rucOcupado ? (
+              <Button
+                type="button"
+                disabled={solicitar.isPending}
+                onClick={() => solicitar.mutate()}
+              >
+                {solicitar.isPending ? "Enviando…" : "Solicitar acceso"}
+              </Button>
+            ) : (
+              <Button type="submit" disabled={crear.isPending}>
+                {crear.isPending ? "Creando…" : "Crear"}
+              </Button>
+            )}
           </div>
         </form>
       </div>

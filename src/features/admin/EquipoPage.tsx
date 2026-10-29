@@ -8,6 +8,7 @@ import {
   listAdminCompanies,
   listRoles,
   listTeamMembers,
+  ROLES_ASIGNABLES,
   setMembershipStatus,
 } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
@@ -148,11 +149,13 @@ export function EquipoPage() {
                       </FormField>
                       <FormField label="Rol" htmlFor="team-rol">
                         <Select id="team-rol" value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
-                          {(roles ?? []).map((r) => (
-                            <option key={r.key} value={r.key}>
-                              {r.nombre}
-                            </option>
-                          ))}
+                          {(roles ?? [])
+                            .filter((r) => ROLES_ASIGNABLES.includes(r.key))
+                            .map((r) => (
+                              <option key={r.key} value={r.key}>
+                                {r.nombre}
+                              </option>
+                            ))}
                         </Select>
                       </FormField>
                     </div>

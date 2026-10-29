@@ -9,6 +9,7 @@ import {
   listMembers,
   listRoles,
   removeMember,
+  ROLES_ASIGNABLES,
 } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
@@ -36,6 +37,7 @@ export function MiembrosPage() {
     enabled: companyId != null,
   })
   const { data: roles } = useQuery({ queryKey: ["admin", "roles"], queryFn: listRoles })
+  const asignables = (roles ?? []).filter((r) => ROLES_ASIGNABLES.includes(r.key))
 
   const [email, setEmail] = useState("")
   const [nombre, setNombre] = useState("")
@@ -96,7 +98,7 @@ export function MiembrosPage() {
           value={row.original.role_key}
           onChange={(e) => cambiarRol.mutate({ id: row.original.membership_id, role: e.target.value })}
         >
-          {(roles ?? []).map((r) => (
+          {asignables.map((r) => (
             <option key={r.key} value={r.key}>
               {r.nombre}
             </option>
@@ -137,7 +139,7 @@ export function MiembrosPage() {
             </FormField>
             <FormField label="Rol" htmlFor="rol">
               <Select id="rol" value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
-                {(roles ?? []).map((r) => (
+                {asignables.map((r) => (
                   <option key={r.key} value={r.key}>
                     {r.nombre}
                   </option>

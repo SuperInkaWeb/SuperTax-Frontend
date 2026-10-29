@@ -17,6 +17,7 @@ export async function listCompanies(): Promise<Company[]> {
 export async function createCompany(input: {
   ruc: string
   razon_social: string
+  estudio_id?: number
 }): Promise<Company> {
   const { data } = await api.post<Company>("/api/companies", input)
   return data
@@ -186,6 +187,83 @@ export async function setMembershipStatus(
   const { data } = await api.patch<TeamMembershipItem>(
     `/api/team/memberships/${membershipId}`,
     { status },
+  )
+  return data
+}
+
+// Roles que un admin asigna a un cliente concreto (los de estudio no van aquí).
+export const ROLES_ASIGNABLES = ["operador", "asistente", "consulta"]
+
+// ─────────────────────── Estudio (co-admins) ───────────────────────
+export interface EstudioMemberItem {
+  user_id: number
+  email: string
+  nombre: string
+  role_key: string
+  status: "activo" | "inactivo"
+}
+
+export interface EstudioItem {
+  id: number
+  nombre: string
+  members: EstudioMemberItem[]
+}
+
+export async function listMisEstudios(): Promise<EstudioItem[]> {
+  const { data } = await api.get<EstudioItem[]>("/api/estudio")
+  return data
+}
+
+export async function inviteEstudioAdmin(input: {
+  email: string
+  nombre: string
+  estudio_id?: number
+}): Promise<EstudioMemberItem> {
+  const { data } = await api.post<EstudioMemberItem>("/api/estudio/admins", input)
+  return data
+}
+
+export async function removeEstudioAdmin(userId: number, estudioId?: number): Promise<void> {
+  await api.delete(`/api/estudio/admins/${userId}`, {
+    params: estudioId ? { estudio_id: estudioId } : undefined,
+  })
+}
+
+// Todos los estudios (SuperAdmin), para asignar una empresa a uno al crearla.
+export interface EstudioAll {
+  id: number
+  nombre: string
+  owner_email: string
+}
+
+export async function listAllEstudios(): Promise<EstudioAll[]> {
+  const { data } = await api.get<EstudioAll[]>("/api/estudio/all")
+  return data
+}
+
+// ─────────── Solicitudes de acceso a una empresa (RUC ya registrado) ───────────
+export interface CompanyAccessRequest {
+  id: number
+  ruc: string
+  razon_social: string
+  requester_email: string
+  requester_nombre: string
+  mensaje: string | null
+  status: string
+}
+
+export async function listCompanyAccessRequests(): Promise<CompanyAccessRequest[]> {
+  const { data } = await api.get<CompanyAccessRequest[]>("/api/company-access-requests")
+  return data
+}
+
+export async function reviewCompanyAccessRequest(
+  id: number,
+  input: { status: "aprobado" | "rechazado"; role_key?: string; motivo?: string },
+): Promise<CompanyAccessRequest> {
+  const { data } = await api.put<CompanyAccessRequest>(
+    `/api/company-access-requests/${id}/review`,
+    input,
   )
   return data
 }

@@ -1,4 +1,4 @@
-import { Building2, Inbox, Settings, Users, UsersRound } from "lucide-react"
+import { Building2, Inbox, KeyRound, Settings, ShieldCheck, Users, UsersRound } from "lucide-react"
 
 import { ModuleLayout } from "@/app/layout/ModuleLayout"
 import { useAuthStore } from "@/shared/stores/auth"
@@ -17,6 +17,8 @@ export function AdminLayout() {
       : []),
     { to: "/admin/miembros", label: "Miembros", icon: Users },
     { to: "/admin/equipo", label: "Equipo", icon: UsersRound },
+    { to: "/admin/administradores", label: "Administradores", icon: ShieldCheck },
+    { to: "/admin/solicitudes-acceso", label: "Solicitudes de acceso", icon: KeyRound },
   ]
 
   return (

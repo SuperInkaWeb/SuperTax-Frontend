@@ -17,3 +17,14 @@ export async function createMyCompany(input: {
   const { data } = await api.post<CreatedCompany>("/api/my-companies", input)
   return data
 }
+
+/**
+ * Solicita acceso a una empresa cuyo RUC ya está registrado por otro estudio.
+ * La aprueba el administrador del estudio dueño.
+ */
+export async function solicitarAccesoEmpresa(input: {
+  ruc: string
+  mensaje?: string
+}): Promise<void> {
+  await api.post("/api/company-access-requests", input)
+}
