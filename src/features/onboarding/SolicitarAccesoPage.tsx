@@ -46,15 +46,27 @@ export function SolicitarAccesoPage() {
   }
 
   if (enviar.isSuccess) {
+    const esAcceso = enviar.data?.tipo === "acceso_empresa"
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6">
         <div className="w-full max-w-md space-y-4 text-center">
           <CheckCircle2 className="mx-auto size-12 text-primary" />
           <h1 className="text-2xl font-semibold">Solicitud enviada</h1>
           <p className="text-sm text-muted-foreground">
-            Recibimos tu solicitud. Cuando sea aprobada, llegará un correo a{" "}
-            <span className="font-medium text-foreground">{email}</span> para que
-            establezcas tu contraseña e ingreses.
+            {esAcceso ? (
+              <>
+                Esa empresa ya está registrada por un estudio. Enviamos tu solicitud
+                de acceso a su administrador. Cuando la apruebe, llegará un correo a{" "}
+                <span className="font-medium text-foreground">{email}</span> para que
+                establezcas tu contraseña e ingreses.
+              </>
+            ) : (
+              <>
+                Recibimos tu solicitud. Cuando sea aprobada, llegará un correo a{" "}
+                <span className="font-medium text-foreground">{email}</span> para que
+                establezcas tu contraseña e ingreses.
+              </>
+            )}
           </p>
           <Link to="/login" className={buttonVariants({ variant: "outline" })}>
             Volver al inicio de sesión

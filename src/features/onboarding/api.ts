@@ -9,11 +9,23 @@ export interface SolicitudAccesoInput {
   mensaje?: string
 }
 
+export interface SolicitudAccesoResult {
+  // "estudio_nuevo": RUC libre → la revisa el SuperAdmin.
+  // "acceso_empresa": el RUC ya existe → la revisa el admin del estudio dueño.
+  tipo: "estudio_nuevo" | "acceso_empresa"
+  email: string
+  ruc: string
+  detalle: string
+}
+
 /**
- * Solicitud pública de acceso: crea una AccessRequest pendiente que el
- * SuperAdmin revisará. No requiere sesión (el interceptor no adjunta token
- * si no hay usuario autenticado).
+ * Solicitud pública de acceso. Si el RUC es libre, pide el alta de un estudio
+ * nuevo (la revisa el SuperAdmin); si el RUC ya existe, se convierte en una
+ * solicitud de acceso al administrador del estudio dueño. No requiere sesión.
  */
-export async function crearSolicitudAcceso(input: SolicitudAccesoInput): Promise<void> {
-  await api.post("/api/access-requests", input)
+export async function crearSolicitudAcceso(
+  input: SolicitudAccesoInput,
+): Promise<SolicitudAccesoResult> {
+  const { data } = await api.post<SolicitudAccesoResult>("/api/access-requests", input)
+  return data
 }
