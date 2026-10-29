@@ -18,6 +18,7 @@ const RUC_LENGTH = 11
 
 export function AgregarEmpresaDialog({ onClose }: { onClose: () => void }) {
   const setUser = useAuthStore((s) => s.setUser)
+  const companies = useAuthStore((s) => s.user?.companies ?? [])
   const setCompanyId = useActiveCompany((s) => s.setCompanyId)
   const [ruc, setRuc] = useState("")
   const [razonSocial, setRazonSocial] = useState("")
@@ -36,6 +37,12 @@ export function AgregarEmpresaDialog({ onClose }: { onClose: () => void }) {
     },
     onError: (err) => {
       if (isAxiosError(err) && err.response?.status === 409) {
+        // Si el RUC ya está en TU estudio (ya lo ves), no tiene sentido solicitar
+        // acceso: solo se ofrece cuando pertenece a OTRO estudio.
+        if (companies.some((c) => c.ruc === ruc)) {
+          toast.error("Esa empresa ya está en tu estudio")
+          return
+        }
         setRucOcupado(true)
         return
       }
