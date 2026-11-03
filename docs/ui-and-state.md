@@ -35,7 +35,7 @@ Estado global ligero en `src/shared/stores/`:
 
 | Store | Rol |
 |---|---|
-| `activeCompany` | empresa activa (Modelo B). El cliente axios lee `companyId` y lo envía como `X-Company-Id` |
+| `activeCompany` | empresa activa (modelo de estudios). El cliente axios lee `companyId` y lo envía como `X-Company-Id` |
 | `auth` | estado de sesión del lado del cliente |
 | `theme` | tema (claro/oscuro) |
 

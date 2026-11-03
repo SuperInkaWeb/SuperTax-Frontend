@@ -8,12 +8,13 @@ src/
 ├─ shared/      transversal: ui, lib (api-client, authBridge, config), stores, types, hooks
 └─ features/    por dominio — espejo de los módulos del backend
    ├─ auth/        login + puente Auth0
-   ├─ onboarding/  solicitar acceso
+   ├─ onboarding/  solicitar acceso (registro en 2 pasos)
    ├─ dashboard/
-   ├─ company/     empresa / equipo
-   ├─ sunat/  sire/  scanner/   ← módulos de negocio
+   ├─ company/     empresa activa (agregar empresa / solicitar acceso)
+   ├─ conexiones/  hub de credenciales (Clave SOL, API SIRE, Drive, buzones)
+   ├─ sunat/ sire/ scanner/ datafilter/ correos/   ← módulos de negocio
    ├─ tickets/     soporte
-   └─ admin/        administración de plataforma
+   └─ admin/        administración: estudio, equipo, roles, solicitudes
 ```
 
 Cada `feature` es autocontenido (páginas, `api.ts`, componentes) y se monta bajo
@@ -51,8 +52,9 @@ config.headers["X-Company-Id"] = String(activeCompany.companyId)
 if (error.response?.status === 401) cerrarSesion()
 ```
 
-`X-Company-Id` sale del store `activeCompany` (Modelo B): es lo que el backend usa
-para resolver y validar la empresa activa. `VITE_API_URL` define el `baseURL`.
+`X-Company-Id` sale del store `activeCompany`: es lo que el backend usa para
+resolver y validar la empresa activa (acceso por admin de estudio o membresía).
+`VITE_API_URL` define el `baseURL`.
 
 ## Providers (`app/providers.tsx`)
 

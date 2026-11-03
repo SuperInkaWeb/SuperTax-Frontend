@@ -1,8 +1,8 @@
 # Documentación — plataforma-frontend
 
-SPA única de la plataforma (**Escaneo · SUNAT · SIRE**): React 19 + Vite +
-TypeScript + shadcn (base-nova / `@base-ui/react`) + Tailwind v4 + Auth0 +
-TanStack Query + zustand.
+SPA única de la plataforma (**SUNAT · SIRE · Escaneo · DataFilter · Correos**):
+React 19 + Vite + TypeScript + shadcn (base-nova / `@base-ui/react`) + Tailwind v4
++ Auth0 + TanStack Query + zustand. Multi-tenant con modelo de **estudios contables**.
 
 Para lo cross-cutting del sistema (arquitectura del backend, módulos, seguridad,
 despliegue completo), ver la carpeta `docs/` del **plataforma-backend**. Aquí se

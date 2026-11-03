@@ -2,19 +2,22 @@
 
 Cada carpeta en `src/features/` es un dominio autocontenido: sus páginas,
 componentes, y un `api.ts` que habla con el backend por el cliente axios
-compartido. Los tres de negocio espejan los módulos del backend.
+compartido. Los cinco de negocio espejan los módulos del backend.
 
 | Feature | Ruta | Qué hace |
 |---|---|---|
 | `auth` | `/login` | inicio de sesión (Auth0) + puente |
-| `onboarding` | `/solicitar-acceso` | solicitud de acceso de nuevos usuarios |
+| `onboarding` | `/solicitar-acceso` | registro público en **2 pasos** (RUC → estudio nuevo o solicitud de acceso) |
 | `dashboard` | `/dashboard` | portada tras el login |
-| `company` | (dentro de admin/layout) | empresa activa, equipo/miembros |
+| `company` | diálogo "agregar empresa" | alta self-service; si el RUC es ajeno, ofrece solicitar acceso |
+| `conexiones` | overlay (Topbar) | hub de credenciales: Clave SOL (SUNAT+SIRE), API SIRE, Drive, buzones |
 | `sunat` | `/sunat/*` | descarga de comprobantes (ver abajo) |
 | `sire` | `/sire/*` | conciliación de registros |
 | `scanner` | `/scanner/*` | extracción OCR + IA de documentos |
+| `datafilter` | `/datafilter/*` | análisis de archivos grandes (filtrar/pivotear/reemplazar) con subida/descarga directa a R2 |
+| `correos` | `/correos/*` | automatización de buzones (OAuth) y extracción de adjuntos |
 | `tickets` | `/soporte` | tickets de soporte |
-| `admin` | `/admin/*` | administración de plataforma (usuarios, roles, módulos) |
+| `admin` | `/admin/*` | administración del estudio: **Miembros**, **Equipo**, **Administradores** (co-admins), **Solicitudes de acceso**; y para el SuperAdmin: **Empresas** y **Solicitudes** (altas de estudio) |
 
 ## Feature `sunat` (la más rica)
 
