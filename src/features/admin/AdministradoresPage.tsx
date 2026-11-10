@@ -82,7 +82,9 @@ function EstudioCard({ estudio, onChange }: { estudio: EstudioItem; onChange: ()
         </div>
 
         <div className="flex flex-col gap-1.5">
-          {estudio.members.map((m) => (
+          {/* Solo admins activos: los quitados (soft-delete) quedan como historial
+              en la BD pero no se listan, para no confundir. */}
+          {activos.map((m) => (
             <div key={m.user_id} className="flex items-center gap-2 text-sm">
               <span className="min-w-[14rem] truncate">
                 <span className="font-medium">{m.nombre}</span>{" "}
