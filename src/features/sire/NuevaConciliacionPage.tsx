@@ -45,10 +45,12 @@ export function NuevaConciliacionPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
+  const prevFileRef = useRef<HTMLInputElement>(null)
 
   const [periodo, setPeriodo] = useState("")
   const [tipoLibro, setTipoLibro] = useState<TipoLibro>("ventas")
   const [file, setFile] = useState<File | null>(null)
+  const [fileMesAnterior, setFileMesAnterior] = useState<File | null>(null)
   const [reutilizar, setReutilizar] = useState(true)
   const [sinSire, setSinSire] = useState(false)
 
@@ -131,6 +133,7 @@ export function NuevaConciliacionPage() {
         cobertura_fechas: tipoLibro === "ventas" && analisis ? (cobertura ?? null) : null,
         mapeo_columnas: analisis?.solo_lectura ? null : mapeoConfig,
         guardar_formato: puedeGuardar && guardarFormato,
+        archivo_mes_anterior: tipoLibro === "ventas" ? fileMesAnterior : null,
       }),
     onSuccess: (job) => {
       toast.success("Conciliación creada — se está procesando")
@@ -385,6 +388,53 @@ export function NuevaConciliacionPage() {
                   esPle={analisis.nivel === "ple"}
                   onChange={setCobertura}
                 />
+              )}
+
+              {tipoLibro === "ventas" && (
+                <div className="space-y-1.5">
+                  <Label>PLE del mes anterior (opcional)</Label>
+                  <div
+                    onClick={() => prevFileRef.current?.click()}
+                    className={`flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm transition-colors ${
+                      fileMesAnterior
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50 hover:bg-muted/30"
+                    }`}
+                  >
+                    <FileText
+                      className={`size-5 ${fileMesAnterior ? "text-primary" : "text-muted-foreground"}`}
+                    />
+                    {fileMesAnterior ? (
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {fileMesAnterior.name}
+                      </span>
+                    ) : (
+                      <span className="flex-1 text-muted-foreground">
+                        Súbelo para detectar duplicidad y cortes de correlatividad contra el mes previo
+                      </span>
+                    )}
+                    {fileMesAnterior && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setFileMesAnterior(null)
+                          if (prevFileRef.current) prevFileRef.current.value = ""
+                        }}
+                      >
+                        Quitar
+                      </button>
+                    )}
+                    <input
+                      ref={prevFileRef}
+                      type="file"
+                      accept=".txt,.csv,.xlsx,.xlsm"
+                      className="hidden"
+                      onChange={(e) => setFileMesAnterior(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                </div>
               )}
 
               <Button type="submit" className="w-full" disabled={bloqueado}>

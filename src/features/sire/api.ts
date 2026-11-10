@@ -17,6 +17,8 @@ export interface CreateJobInput {
   cobertura_fechas: string[] | null
   mapeo_columnas?: MapeoConfig | null
   guardar_formato?: boolean
+  // PLE del mes anterior (opcional, solo ventas): duplicidad y correlatividad.
+  archivo_mes_anterior?: File | null
 }
 
 export async function createJob(input: CreateJobInput): Promise<ReconciliationJob> {
@@ -33,6 +35,9 @@ export async function createJob(input: CreateJobInput): Promise<ReconciliationJo
     form.append("mapeo_columnas", JSON.stringify(input.mapeo_columnas))
   }
   if (input.guardar_formato) form.append("guardar_formato", "true")
+  if (input.tipo_libro === "ventas" && input.archivo_mes_anterior) {
+    form.append("archivo_mes_anterior", input.archivo_mes_anterior)
+  }
   // Content-Type undefined → el navegador fija multipart con su boundary.
   const { data } = await api.post<ReconciliationJob>("/api/sire/jobs", form, {
     headers: { "Content-Type": undefined },
