@@ -8,7 +8,9 @@ import { useConexiones } from "@/features/conexiones/store"
 import { listMailboxes } from "@/features/correos/api"
 import {
   getCredentials as getSireCred,
+  getValidezCredentials,
   setCredentials as setSireCred,
+  setValidezCredentials,
 } from "@/features/sire/api"
 import {
   disconnectDrive,
@@ -167,6 +169,78 @@ function ApiSireCard() {
   )
 }
 
+/** Credenciales de la API de Validez (Consulta de Validez), distintas a las del SIRE. */
+function ApiValidezCard() {
+  const queryClient = useQueryClient()
+  const [clientId, setClientId] = useState("")
+  const [clientSecret, setClientSecret] = useState("")
+
+  const cred = useQuery({ queryKey: ["sire", "validez-cred"], queryFn: getValidezCredentials })
+
+  const guardar = useMutation({
+    mutationFn: () =>
+      setValidezCredentials({
+        client_id: clientId || (cred.data?.client_id ?? ""),
+        client_secret: clientSecret,
+      }),
+    onSuccess: () => {
+      toast.success("Credenciales de API Validez guardadas")
+      setClientSecret("")
+      queryClient.invalidateQueries({ queryKey: ["sire", "validez-cred"] })
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudieron guardar")),
+  })
+
+  const configurado = Boolean(cred.data?.configured)
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <KeyRound className="size-4 text-primary" /> API Validez
+        </CardTitle>
+        <Configurado ok={configurado} />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Client ID y Client Secret de SUNAT SOL → Comprobantes de pago → Consulta de Validez →
+          Credenciales de API SUNAT. Es una app <span className="font-medium">distinta</span> a la
+          del SIRE. Habilitan la columna “Rpta SUNAT” del reporte. El secret se cifra.
+        </p>
+        <div className="grid gap-4 @container sm:grid-cols-2">
+          <FormField label="Client ID" htmlFor="validez-cid">
+            <Input
+              id="validez-cid"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder={cred.data?.client_id ?? "xxxxxxxx-xxxx-…"}
+            />
+          </FormField>
+          <FormField
+            label="Client Secret"
+            htmlFor="validez-cs"
+            hint={configurado ? "Déjalo para reemplazar el guardado" : undefined}
+          >
+            <Input
+              id="validez-cs"
+              type="password"
+              value={clientSecret}
+              onChange={(e) => setClientSecret(e.target.value)}
+              autoComplete="off"
+            />
+          </FormField>
+        </div>
+        <Button
+          disabled={guardar.isPending || (!clientId && !cred.data?.client_id) || !clientSecret}
+          onClick={() => guardar.mutate()}
+        >
+          Guardar API Validez
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 function DriveCard() {
   const queryClient = useQueryClient()
   const status = useQuery({ queryKey: ["sunat", "drive"], queryFn: getDriveStatus })
@@ -275,6 +349,7 @@ function ConexionesPanel() {
         <>
           {(sunat || sire) && <SolCard sunat={sunat} sire={sire} ruc={empresa.ruc} />}
           {sire && <ApiSireCard />}
+          {sire && <ApiValidezCard />}
           {sunat && <DriveCard />}
           {correos && <BuzonesCard />}
         </>

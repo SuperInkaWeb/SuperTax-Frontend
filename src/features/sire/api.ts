@@ -95,6 +95,29 @@ export async function setCredentials(input: CredentialsInput): Promise<Credentia
   return data
 }
 
+// ─────────────────────── Credenciales de validez (Rpta SUNAT) ───────────────────────
+export interface ValidezCredentialsStatus {
+  configured: boolean
+  client_id: string | null
+  updated_at: string | null
+}
+
+export async function getValidezCredentials(): Promise<ValidezCredentialsStatus> {
+  const { data } = await api.get<ValidezCredentialsStatus>("/api/sire/validez-credentials")
+  return data
+}
+
+export async function setValidezCredentials(input: {
+  client_id: string
+  client_secret: string
+}): Promise<ValidezCredentialsStatus> {
+  const { data } = await api.put<ValidezCredentialsStatus>(
+    "/api/sire/validez-credentials",
+    input,
+  )
+  return data
+}
+
 // ─────────────────────── Formato de archivo ───────────────────────
 export interface SavedMapping extends MapeoConfig {
   tipo_libro: TipoLibro
