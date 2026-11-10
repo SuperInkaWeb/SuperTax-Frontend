@@ -3,7 +3,14 @@ export interface Company {
   ruc: string
   razon_social: string
   role_key: string
+  estudio_id: number | null
   modules: string[]
+}
+
+/** Estudio al que pertenece el usuario (unidad de tenencia). */
+export interface Estudio {
+  id: number
+  nombre: string
 }
 
 export interface Me {
@@ -11,6 +18,7 @@ export interface Me {
   email: string
   nombre: string
   is_platform_admin: boolean
+  estudios: Estudio[]
   companies: Company[]
 }
 

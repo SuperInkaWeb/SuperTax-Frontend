@@ -12,6 +12,7 @@ import {
   setMembershipStatus,
 } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
+import { useActiveEstudio } from "@/shared/stores/activeEstudio"
 import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent } from "@/shared/ui/card"
@@ -33,9 +34,16 @@ const ACCESO: Record<string, StatusMeta> = {
 
 export function EquipoPage() {
   const queryClient = useQueryClient()
+  const estudioId = useActiveEstudio((s) => s.estudioId)
 
-  const companies = useQuery({ queryKey: ["team", "companies"], queryFn: listAdminCompanies })
-  const members = useQuery({ queryKey: ["team", "members"], queryFn: listTeamMembers })
+  const companies = useQuery({
+    queryKey: ["team", "companies", estudioId],
+    queryFn: () => listAdminCompanies(estudioId ?? undefined),
+  })
+  const members = useQuery({
+    queryKey: ["team", "members", estudioId],
+    queryFn: () => listTeamMembers(estudioId ?? undefined),
+  })
   const { data: roles } = useQuery({ queryKey: ["admin", "roles"], queryFn: listRoles })
 
   const [email, setEmail] = useState("")

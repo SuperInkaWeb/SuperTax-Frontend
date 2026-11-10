@@ -7,6 +7,7 @@ import { createMyCompany, solicitarAccesoEmpresa } from "@/features/company/api"
 import { apiError } from "@/shared/lib/api/error"
 import { getMe } from "@/shared/lib/api/me"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { useActiveEstudio } from "@/shared/stores/activeEstudio"
 import { useAuthStore } from "@/shared/stores/auth"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
@@ -20,13 +21,19 @@ export function AgregarEmpresaDialog({ onClose }: { onClose: () => void }) {
   const setUser = useAuthStore((s) => s.setUser)
   const companies = useAuthStore((s) => s.user?.companies ?? [])
   const setCompanyId = useActiveCompany((s) => s.setCompanyId)
+  const estudioId = useActiveEstudio((s) => s.estudioId)
   const [ruc, setRuc] = useState("")
   const [razonSocial, setRazonSocial] = useState("")
   // El RUC ya pertenece a otro estudio: en vez de crear, se ofrece solicitar acceso.
   const [rucOcupado, setRucOcupado] = useState(false)
 
   const crear = useMutation({
-    mutationFn: () => createMyCompany({ ruc, razon_social: razonSocial }),
+    mutationFn: () =>
+      createMyCompany({
+        ruc,
+        razon_social: razonSocial,
+        estudio_id: estudioId ?? undefined,
+      }),
     onSuccess: async (nueva) => {
       // Recarga /me para que la empresa aparezca en el selector, y la deja activa.
       const me = await getMe()

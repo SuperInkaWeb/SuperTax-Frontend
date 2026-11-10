@@ -1,6 +1,7 @@
 import { Menu, Moon, Plug, Sun } from "lucide-react"
 
 import { CompanySwitcher } from "@/app/layout/CompanySwitcher"
+import { EstudioSwitcher } from "@/app/layout/EstudioSwitcher"
 import { GlobalSearch } from "@/app/layout/GlobalSearch"
 import { NotificationsBell } from "@/app/layout/NotificationsBell"
 import { UserMenu } from "@/app/layout/UserMenu"
@@ -24,6 +25,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         <Menu className="size-5" />
       </button>
 
+      <EstudioSwitcher />
       <CompanySwitcher />
 
       <div className="ml-auto flex items-center gap-2">

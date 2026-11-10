@@ -9,6 +9,7 @@ import {
   removeEstudioAdmin,
 } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
+import { useActiveEstudio } from "@/shared/stores/activeEstudio"
 import { useAuthStore } from "@/shared/stores/auth"
 import { AsyncBoundary } from "@/shared/ui/async-boundary"
 import { Button } from "@/shared/ui/button"
@@ -135,6 +136,7 @@ function EstudioCard({ estudio, onChange }: { estudio: EstudioItem; onChange: ()
 
 export function AdministradoresPage() {
   const queryClient = useQueryClient()
+  const estudioId = useActiveEstudio((s) => s.estudioId)
   const estudios = useQuery({ queryKey: ["estudio", "mis"], queryFn: listMisEstudios })
   const invalidar = () => queryClient.invalidateQueries({ queryKey: ["estudio", "mis"] })
 
@@ -157,11 +159,16 @@ export function AdministradoresPage() {
           />
         }
       >
-        {(lista) =>
-          lista.map((estudio) => (
+        {(lista) => {
+          // Con un estudio activo se muestra solo su tarjeta. Si el activo no es
+          // uno que administras (p. ej. estás ahí como staff), se muestran todos
+          // tus estudios admin en vez de dejar la página en blanco.
+          const soloActivo = lista.filter((e) => e.id === estudioId)
+          const visibles = estudioId != null && soloActivo.length > 0 ? soloActivo : lista
+          return visibles.map((estudio) => (
             <EstudioCard key={estudio.id} estudio={estudio} onChange={invalidar} />
           ))
-        }
+        }}
       </AsyncBoundary>
     </div>
   )

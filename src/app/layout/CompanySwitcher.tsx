@@ -3,6 +3,7 @@ import { useState } from "react"
 
 import { AgregarEmpresaDialog } from "@/features/company/AgregarEmpresaDialog"
 import { useActiveCompany } from "@/shared/stores/activeCompany"
+import { useActiveEstudio } from "@/shared/stores/activeEstudio"
 import { useAuthStore } from "@/shared/stores/auth"
 import { Button } from "@/shared/ui/button"
 
@@ -13,19 +14,24 @@ export function CompanySwitcher() {
   // render y provoca un bucle infinito en useSyncExternalStore (React #185).
   const user = useAuthStore((s) => s.user)
   const companies = user?.companies ?? []
+  const estudioId = useActiveEstudio((s) => s.estudioId)
   const companyId = useActiveCompany((s) => s.companyId)
   const setCompanyId = useActiveCompany((s) => s.setCompanyId)
   const [agregando, setAgregando] = useState(false)
 
+  // Con un estudio activo se muestran solo sus empresas; sin él, todas (compat).
+  const visibles =
+    estudioId != null ? companies.filter((c) => c.estudio_id === estudioId) : companies
+
   return (
     <div className="flex items-center gap-2">
-      {companies.length > 0 ? (
+      {visibles.length > 0 ? (
         <select
           className="max-w-[18rem] truncate rounded-md border bg-background px-3 py-1.5 text-sm"
           value={companyId ?? ""}
           onChange={(e) => setCompanyId(Number(e.target.value))}
         >
-          {companies.map((c) => (
+          {visibles.map((c) => (
             <option key={c.id} value={c.id}>
               {c.razon_social} — {c.ruc}
             </option>

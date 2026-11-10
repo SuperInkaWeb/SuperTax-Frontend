@@ -160,13 +160,17 @@ export interface TeamAssignResult {
   ya_existentes: number[]
 }
 
-export async function listAdminCompanies(): Promise<TeamCompany[]> {
-  const { data } = await api.get<TeamCompany[]>("/api/team/companies")
+export async function listAdminCompanies(estudioId?: number): Promise<TeamCompany[]> {
+  const { data } = await api.get<TeamCompany[]>("/api/team/companies", {
+    params: estudioId ? { estudio_id: estudioId } : undefined,
+  })
   return data
 }
 
-export async function listTeamMembers(): Promise<TeamMember[]> {
-  const { data } = await api.get<TeamMember[]>("/api/team/members")
+export async function listTeamMembers(estudioId?: number): Promise<TeamMember[]> {
+  const { data } = await api.get<TeamMember[]>("/api/team/members", {
+    params: estudioId ? { estudio_id: estudioId } : undefined,
+  })
   return data
 }
 
