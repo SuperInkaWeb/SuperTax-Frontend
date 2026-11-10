@@ -11,6 +11,9 @@ export interface Company {
 export interface Estudio {
   id: number
   nombre: string
+  // True si el usuario es ADMIN de este estudio (puede gestionar tenencia:
+  // agregar empresas, crear estudios). El staff acotado no.
+  es_admin: boolean
 }
 
 export interface Me {

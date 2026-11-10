@@ -59,10 +59,12 @@ export function EstudioSwitcher() {
         </select>
       )}
 
-      <Button size="sm" variant="outline" onClick={() => setCreando(true)}>
-        <Plus className="size-4" />
-        Estudio
-      </Button>
+      {estudios.some((e) => e.es_admin) && (
+        <Button size="sm" variant="outline" onClick={() => setCreando(true)}>
+          <Plus className="size-4" />
+          Estudio
+        </Button>
+      )}
 
       {creando && <CrearEstudioDialog onClose={() => setCreando(false)} />}
     </div>
