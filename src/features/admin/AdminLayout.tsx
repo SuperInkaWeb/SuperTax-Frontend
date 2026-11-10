@@ -1,4 +1,4 @@
-import { Building2, Inbox, KeyRound, Settings, ShieldCheck, Users, UsersRound } from "lucide-react"
+import { Building2, Coins, Inbox, KeyRound, Settings, ShieldCheck, Users, UsersRound } from "lucide-react"
 
 import { ModuleLayout } from "@/app/layout/ModuleLayout"
 import { useAuthStore } from "@/shared/stores/auth"
@@ -13,6 +13,7 @@ export function AdminLayout() {
       ? [
           { to: "/admin", label: "Empresas", icon: Building2, end: true },
           { to: "/admin/solicitudes", label: "Solicitudes", icon: Inbox },
+          { to: "/admin/tipo-cambio", label: "Tipo de cambio", icon: Coins },
         ]
       : []),
     { to: "/admin/miembros", label: "Miembros", icon: Users },

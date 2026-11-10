@@ -8,6 +8,7 @@ import { EquipoPage } from "@/features/admin/EquipoPage"
 import { MiembrosPage } from "@/features/admin/MiembrosPage"
 import { SolicitudesAccesoPage } from "@/features/admin/SolicitudesAccesoPage"
 import { SolicitudesPage } from "@/features/admin/SolicitudesPage"
+import { TipoCambioPage } from "@/features/admin/TipoCambioPage"
 import { useAuthStore } from "@/shared/stores/auth"
 
 export function AdminRoutes() {
@@ -24,6 +25,9 @@ export function AdminRoutes() {
         <Route path="equipo" element={<EquipoPage />} />
         <Route path="administradores" element={<AdministradoresPage />} />
         <Route path="solicitudes-acceso" element={<SolicitudesAccesoPage />} />
+        {esPlatformAdmin && (
+          <Route path="tipo-cambio" element={<TipoCambioPage />} />
+        )}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

@@ -271,3 +271,39 @@ export async function reviewCompanyAccessRequest(
   )
   return data
 }
+
+// ─────────────────────── Tipo de cambio (global, SuperAdmin) ───────────────────────
+export interface TipoCambioDia {
+  fecha: string
+  compra: number
+  venta: number
+  fuente: string
+  updated_at: string | null
+}
+
+export async function listTipoCambio(desde: string, hasta: string): Promise<TipoCambioDia[]> {
+  const { data } = await api.get<TipoCambioDia[]>("/api/sire/tipo-cambio", {
+    params: { desde, hasta },
+  })
+  return data
+}
+
+export async function refrescarTipoCambio(
+  desde: string,
+  hasta: string,
+): Promise<{ actualizados: number }> {
+  const { data } = await api.post<{ actualizados: number }>("/api/sire/tipo-cambio/refrescar", {
+    desde,
+    hasta,
+  })
+  return data
+}
+
+export async function editarTipoCambio(
+  fecha: string,
+  compra: number,
+  venta: number,
+): Promise<TipoCambioDia> {
+  const { data } = await api.put<TipoCambioDia>(`/api/sire/tipo-cambio/${fecha}`, { compra, venta })
+  return data
+}
