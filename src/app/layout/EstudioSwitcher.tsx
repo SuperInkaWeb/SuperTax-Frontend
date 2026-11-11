@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react"
+import { Building2, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { CrearEstudioDialog } from "@/features/company/CrearEstudioDialog"
@@ -7,9 +7,10 @@ import { useActiveEstudio } from "@/shared/stores/activeEstudio"
 import { useAuthStore } from "@/shared/stores/auth"
 import { Button } from "@/shared/ui/button"
 
-/** Selector de estudio activo (multi-estudio). El <select> aparece solo si el
- * usuario administra/ve más de un estudio; el botón "Crear estudio" está siempre
- * disponible. Al cambiar de estudio, fija como empresa activa la primera de él. */
+/** Selector de estudio activo (multi-estudio). Con varios estudios muestra un
+ * <select>; con uno solo, una etiqueta con su nombre (para que siempre se vea en
+ * qué estudio se trabaja). El botón "Crear estudio" solo aparece para admins. Al
+ * cambiar de estudio, fija como empresa activa la primera de él. */
 export function EstudioSwitcher() {
   // Se selecciona el usuario (referencia estable) y se derivan los arrays fuera
   // del selector para no crear uno nuevo en cada render (React #185).
@@ -44,7 +45,7 @@ export function EstudioSwitcher() {
 
   return (
     <div className="flex items-center gap-2">
-      {estudios.length > 1 && (
+      {estudios.length > 1 ? (
         <select
           aria-label="Estudio activo"
           className="max-w-[14rem] truncate rounded-md border bg-background px-3 py-1.5 text-sm"
@@ -57,7 +58,12 @@ export function EstudioSwitcher() {
             </option>
           ))}
         </select>
-      )}
+      ) : estudios.length === 1 ? (
+        <span className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-sm text-muted-foreground">
+          <Building2 className="size-4 shrink-0" />
+          <span className="max-w-[14rem] truncate">{estudios[0].nombre}</span>
+        </span>
+      ) : null}
 
       {estudios.some((e) => e.es_admin) && (
         <Button size="sm" variant="outline" onClick={() => setCreando(true)}>
