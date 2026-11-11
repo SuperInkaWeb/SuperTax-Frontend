@@ -50,7 +50,7 @@ export function NuevaConciliacionPage() {
   const [periodo, setPeriodo] = useState("")
   const [tipoLibro, setTipoLibro] = useState<TipoLibro>("ventas")
   const [file, setFile] = useState<File | null>(null)
-  const [fileMesAnterior, setFileMesAnterior] = useState<File | null>(null)
+  const [filesMesAnterior, setFilesMesAnterior] = useState<File[]>([])
   const [reutilizar, setReutilizar] = useState(true)
   const [sinSire, setSinSire] = useState(false)
 
@@ -133,7 +133,7 @@ export function NuevaConciliacionPage() {
         cobertura_fechas: tipoLibro === "ventas" && analisis ? (cobertura ?? null) : null,
         mapeo_columnas: analisis?.solo_lectura ? null : mapeoConfig,
         guardar_formato: puedeGuardar && guardarFormato,
-        archivo_mes_anterior: tipoLibro === "ventas" ? fileMesAnterior : null,
+        archivos_mes_anterior: tipoLibro === "ventas" ? filesMesAnterior : [],
       }),
     onSuccess: (job) => {
       toast.success("Conciliación creada — se está procesando")
@@ -392,48 +392,63 @@ export function NuevaConciliacionPage() {
 
               {tipoLibro === "ventas" && (
                 <div className="space-y-1.5">
-                  <Label>PLE del mes anterior (opcional)</Label>
+                  <Label>PLE de meses previos (opcional)</Label>
                   <div
                     onClick={() => prevFileRef.current?.click()}
                     className={`flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm transition-colors ${
-                      fileMesAnterior
+                      filesMesAnterior.length > 0
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/50 hover:bg-muted/30"
                     }`}
                   >
                     <FileText
-                      className={`size-5 ${fileMesAnterior ? "text-primary" : "text-muted-foreground"}`}
+                      className={`size-5 ${filesMesAnterior.length > 0 ? "text-primary" : "text-muted-foreground"}`}
                     />
-                    {fileMesAnterior ? (
-                      <span className="min-w-0 flex-1 truncate font-medium">
-                        {fileMesAnterior.name}
-                      </span>
-                    ) : (
-                      <span className="flex-1 text-muted-foreground">
-                        Súbelo para detectar duplicidad y cortes de correlatividad contra el mes previo
-                      </span>
-                    )}
-                    {fileMesAnterior && (
-                      <button
-                        type="button"
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setFileMesAnterior(null)
-                          if (prevFileRef.current) prevFileRef.current.value = ""
-                        }}
-                      >
-                        Quitar
-                      </button>
-                    )}
+                    <span className="flex-1 text-muted-foreground">
+                      {filesMesAnterior.length > 0
+                        ? `${filesMesAnterior.length} archivo(s) — clic para agregar más`
+                        : "Sube uno o varios PLE previos: duplicidad contra todos y correlatividad contra el más reciente"}
+                    </span>
                     <input
                       ref={prevFileRef}
                       type="file"
+                      multiple
                       accept=".txt,.csv,.xlsx,.xlsm"
                       className="hidden"
-                      onChange={(e) => setFileMesAnterior(e.target.files?.[0] ?? null)}
+                      onChange={(e) => {
+                        const nuevos = Array.from(e.target.files ?? [])
+                        setFilesMesAnterior((previos) => {
+                          const vistos = new Set(previos.map((f) => `${f.name}:${f.size}`))
+                          return [...previos, ...nuevos.filter((f) => !vistos.has(`${f.name}:${f.size}`))]
+                        })
+                        if (prevFileRef.current) prevFileRef.current.value = ""
+                      }}
                     />
                   </div>
+                  {filesMesAnterior.length > 0 && (
+                    <ul className="space-y-1">
+                      {filesMesAnterior.map((f) => (
+                        <li
+                          key={`${f.name}:${f.size}`}
+                          className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs"
+                        >
+                          <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() =>
+                              setFilesMesAnterior((previos) =>
+                                previos.filter((x) => !(x.name === f.name && x.size === f.size)),
+                              )
+                            }
+                          >
+                            Quitar
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 
