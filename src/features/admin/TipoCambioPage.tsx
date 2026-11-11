@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Pencil, RefreshCw } from "lucide-react"
-import { useMemo, useState } from "react"
+import { Pencil, RefreshCw, Upload } from "lucide-react"
+import { useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
   editarTipoCambio,
+  importarTcExcel,
   listTipoCambio,
-  refrescarTipoCambio,
+  traerTcHoy,
   type TipoCambioDia,
 } from "@/features/admin/api"
 import { apiError } from "@/shared/lib/api/error"
@@ -114,6 +115,7 @@ export function TipoCambioPage() {
   const [mes, setMes] = useState(mesActual)
   const [editando, setEditando] = useState<TipoCambioDia | null>(null)
   const [desde, hasta] = useMemo(() => rangoDelMes(mes), [mes])
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const dias = useQuery({
     queryKey: ["tipo-cambio", mes],
@@ -122,21 +124,30 @@ export function TipoCambioPage() {
 
   const invalidar = () => queryClient.invalidateQueries({ queryKey: ["tipo-cambio", mes] })
 
-  const refrescar = useMutation({
-    mutationFn: () => refrescarTipoCambio(desde, hasta),
+  const traerHoy = useMutation({
+    mutationFn: () => traerTcHoy(),
     onSuccess: (r) => {
-      toast.success(`Actualizados ${r.actualizados} día(s) desde el BCRP`)
+      toast.success(`TC de hoy actualizado (${r.actualizados} día)`)
       invalidar()
     },
-    onError: (e) => toast.error(apiError(e, "No se pudo refrescar desde el BCRP")),
+    onError: (e) => toast.error(apiError(e, "No se pudo traer el TC de SUNAT")),
+  })
+
+  const importar = useMutation({
+    mutationFn: (archivo: File) => importarTcExcel(archivo),
+    onSuccess: (r) => {
+      toast.success(`Importados ${r.actualizados} día(s) desde el Excel`)
+      invalidar()
+    },
+    onError: (e) => toast.error(apiError(e, "No se pudo importar el Excel")),
   })
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         Tipo de cambio oficial (venta/compra) que usa la conciliación SIRE para detectar
-        diferencias. Es <span className="font-medium text-foreground">nacional</span>: se puebla
-        solo desde el BCRP; aquí puedes refrescar un mes o corregir un día a mano.
+        diferencias. Es <span className="font-medium text-foreground">nacional</span>: se mantiene
+        solo a diario desde SUNAT; aquí puedes importar un Excel o corregir un día a mano.
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -150,10 +161,29 @@ export function TipoCambioPage() {
             className="w-44"
           />
         </div>
-        <Button variant="outline" disabled={refrescar.isPending} onClick={() => refrescar.mutate()}>
-          <RefreshCw className="size-4" />
-          {refrescar.isPending ? "Refrescando…" : "Refrescar desde BCRP"}
+        <Button
+          variant="outline"
+          disabled={importar.isPending}
+          onClick={() => fileRef.current?.click()}
+        >
+          <Upload className="size-4" />
+          {importar.isPending ? "Importando…" : "Importar Excel"}
         </Button>
+        <Button variant="outline" disabled={traerHoy.isPending} onClick={() => traerHoy.mutate()}>
+          <RefreshCw className="size-4" />
+          {traerHoy.isPending ? "Trayendo…" : "Traer TC de hoy (SUNAT)"}
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".xlsx,.xlsm,.xls"
+          className="hidden"
+          onChange={(e) => {
+            const archivo = e.target.files?.[0]
+            if (archivo) importar.mutate(archivo)
+            e.target.value = ""
+          }}
+        />
       </div>
 
       <AsyncBoundary

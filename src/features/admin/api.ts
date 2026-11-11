@@ -299,6 +299,20 @@ export async function refrescarTipoCambio(
   return data
 }
 
+export async function traerTcHoy(): Promise<{ actualizados: number }> {
+  const { data } = await api.post<{ actualizados: number }>("/api/sire/tipo-cambio/traer-hoy")
+  return data
+}
+
+export async function importarTcExcel(archivo: File): Promise<{ actualizados: number }> {
+  const form = new FormData()
+  form.append("archivo", archivo)
+  const { data } = await api.post<{ actualizados: number }>("/api/sire/tipo-cambio/importar", form, {
+    headers: { "Content-Type": undefined },
+  })
+  return data
+}
+
 export async function editarTipoCambio(
   fecha: string,
   compra: number,
